@@ -887,7 +887,7 @@
               <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
               <line x1="12" y1="22.08" x2="12" y2="12"></line>
             </svg>
-            <span>Assemble</span>
+            <span id="btn-assemble-text">Assemble</span>
           </button>
 
           <button class="control-item" id="btn-explode" onclick="smoothTransitionTo(100)">
@@ -897,7 +897,7 @@
               <line x1="21" y1="3" x2="14" y2="10"></line>
               <line x1="3" y1="21" x2="10" y2="14"></line>
             </svg>
-            <span>Explode</span>
+            <span id="btn-explode-text">Explode</span>
           </button>
 
           <button class="control-item" id="btn-play" onclick="togglePlayLoop()">
@@ -1398,9 +1398,19 @@
       if (type === 'motor') newSrc = `assets/robot_motor.glb?v=${ts}`;
       else if (type === 'radial') newSrc = `assets/cylinder_engine.glb?v=${ts}`;
 
-      if (type === 'engine') assemblyLabel.innerText = 'Turbofan Assembly State';
-      else if (type === 'motor') assemblyLabel.innerText = 'Robot Drive Motor Assembly State';
-      else if (type === 'radial') assemblyLabel.innerText = 'Gnome 7-Cyl Rotary Engine State';
+      if (type === 'engine') {
+        assemblyLabel.innerText = 'Turbofan Assembly State';
+        document.getElementById('btn-assemble-text').innerText = 'Assemble';
+        document.getElementById('btn-explode-text').innerText = 'Explode';
+      } else if (type === 'motor') {
+        assemblyLabel.innerText = 'Robot Drive Motor Assembly State';
+        document.getElementById('btn-assemble-text').innerText = 'Assemble';
+        document.getElementById('btn-explode-text').innerText = 'Explode';
+      } else if (type === 'radial') {
+        assemblyLabel.innerText = 'Propeller & 7-Cyl Rotary Cycle';
+        document.getElementById('btn-assemble-text').innerText = 'Cycle Start';
+        document.getElementById('btn-explode-text').innerText = 'Full Cycle';
+      }
 
       viewer.removeAttribute('src');
       setTimeout(() => {
