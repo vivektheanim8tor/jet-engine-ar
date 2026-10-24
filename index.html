@@ -8,7 +8,7 @@
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
   <style>
     :root {
-      --glass-bg: rgba(20, 20, 24, 0.72);
+      --glass-bg: rgba(20, 20, 24, 0.75);
       --glass-border: rgba(255, 255, 255, 0.14);
       --glass-border-hover: rgba(255, 255, 255, 0.3);
       --accent: #f5f5f7;
@@ -18,6 +18,7 @@
       --blur: blur(28px) saturate(190%);
       --radius-lg: 24px;
       --radius-md: 14px;
+      --cyan: #38bdf8;
     }
 
     * {
@@ -97,13 +98,7 @@
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .selector-tab svg {
-      width: 14px;
-      height: 14px;
-      stroke: currentColor;
-      fill: none;
-    }
-
+    .selector-tab svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
     .selector-tab:hover { color: var(--accent); }
     .selector-tab.active {
       background: var(--active-bg);
@@ -141,7 +136,7 @@
     }
 
     .glass-btn-icon.active {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(56, 189, 248, 0.2);
       border-color: #38bdf8;
       color: #38bdf8;
     }
@@ -171,7 +166,7 @@
       transform: scale(1.02);
     }
 
-    /* Left Stats HUD Card */
+    /* Left Specs HUD Card */
     .specs-card {
       position: absolute;
       top: 80px;
@@ -183,7 +178,7 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
-      transition: opacity 0.3s ease, transform 0.3s ease;
+      transition: opacity 0.3s ease;
     }
 
     .specs-header {
@@ -232,64 +227,119 @@
       font-size: 12px;
     }
 
-    .spec-key {
-      color: var(--accent-muted);
-      font-size: 11px;
+    .spec-key { color: var(--accent-muted); font-size: 11px; }
+    .spec-val { color: var(--accent); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    /* --- ENGINEERING 3D CALLOUT ANCHOR WITH CONNECTING LEADER LINE --- */
+    .callout-anchor {
+      position: relative;
+      cursor: pointer;
+      display: block;
+      outline: none;
+      border: none;
+      background: transparent;
+      padding: 0;
+      pointer-events: auto;
     }
 
-    .spec-val {
-      color: var(--accent);
-      font-weight: 600;
-      font-variant-numeric: tabular-nums;
-    }
-
-    /* 3D AR Hotspot Callout Pins (Attached directly to model coordinates) */
-    .hotspot-pin {
-      background: rgba(15, 23, 42, 0.85);
-      border: 1.5px solid #38bdf8;
+    /* Pulse dot on model surface */
+    .callout-dot {
+      width: 12px;
+      height: 12px;
       border-radius: 50%;
-      width: 24px;
-      height: 24px;
+      background: #38bdf8;
+      box-shadow: 0 0 10px #38bdf8, 0 0 20px rgba(56, 189, 248, 0.8);
+      border: 2px solid #ffffff;
+      animation: calloutPulse 2s infinite ease-in-out;
+    }
+
+    @keyframes calloutPulse {
+      0% { transform: scale(0.9); box-shadow: 0 0 6px #38bdf8; }
+      50% { transform: scale(1.3); box-shadow: 0 0 16px #38bdf8, 0 0 28px rgba(56, 189, 248, 0.6); }
+      100% { transform: scale(0.9); box-shadow: 0 0 6px #38bdf8; }
+    }
+
+    /* Angled leader line extending out from the dot */
+    .callout-line {
+      position: absolute;
+      top: 6px;
+      left: 10px;
+      width: 44px;
+      height: 32px;
+      pointer-events: none;
+      stroke: #38bdf8;
+      stroke-width: 1.5;
+      fill: none;
+      filter: drop-shadow(0 0 3px rgba(56, 189, 248, 0.5));
+    }
+
+    /* Floating callout label tag */
+    .callout-tag {
+      position: absolute;
+      top: -38px;
+      left: 48px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      border-radius: 8px;
+      padding: 5px 10px;
+      white-space: nowrap;
       display: flex;
       align-items: center;
-      justify-content: center;
-      color: #38bdf8;
-      font-size: 12px;
+      gap: 6px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .callout-anchor:hover .callout-tag {
+      transform: translateY(-2px);
+      border-color: #38bdf8;
+      background: rgba(2, 132, 199, 0.95);
+    }
+
+    .callout-num {
+      font-size: 10px;
       font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 0 16px rgba(56, 189, 248, 0.6), inset 0 0 6px rgba(56, 189, 248, 0.4);
-      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s;
-    }
-
-    .hotspot-pin:hover {
-      transform: scale(1.25);
-      background: #38bdf8;
       color: #09090b;
+      background: #38bdf8;
+      border-radius: 4px;
+      padding: 1px 5px;
     }
 
-    /* Floating Part Info Drawer / Popup */
+    .callout-anchor:hover .callout-num {
+      background: #ffffff;
+      color: #0284c7;
+    }
+
+    .callout-text {
+      font-size: 11px;
+      font-weight: 600;
+      color: #ffffff;
+      letter-spacing: 0.02em;
+    }
+
+    /* Right Details Flyout Drawer */
     .info-flyout {
       position: absolute;
       top: 80px;
       right: 20px;
-      width: 300px;
+      width: 320px;
       border-radius: 20px;
       padding: 18px 20px;
       z-index: 20;
       display: none;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
       box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
-      animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      animation: flyoutSlide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .info-flyout.active {
-      display: flex;
-    }
+    .info-flyout.active { display: flex; }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-8px); }
-      to { opacity: 1; transform: translateY(0); }
+    @keyframes flyoutSlide {
+      from { opacity: 0; transform: translateX(12px); }
+      to { opacity: 1; transform: translateX(0); }
     }
 
     .info-header {
@@ -298,13 +348,13 @@
       align-items: flex-start;
     }
 
-    .info-tag {
+    .info-category {
       font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
+      font-weight: 700;
+      letter-spacing: 0.08em;
       text-transform: uppercase;
       color: #38bdf8;
-      margin-bottom: 2px;
+      margin-bottom: 3px;
     }
 
     .info-name {
@@ -325,13 +375,13 @@
 
     .info-body {
       font-size: 12px;
-      line-height: 1.5;
+      line-height: 1.55;
       color: #cbd5e1;
     }
 
     .info-spec-list {
-      margin-top: 6px;
-      padding-top: 8px;
+      margin-top: 4px;
+      padding-top: 10px;
       border-top: 1px solid rgba(255, 255, 255, 0.08);
       display: flex;
       flex-direction: column;
@@ -345,7 +395,7 @@
     }
 
     .info-row span:first-child { color: var(--accent-muted); }
-    .info-row span:last-child { color: #f1f5f9; font-weight: 500; }
+    .info-row span:last-child { color: #f8fafc; font-weight: 600; }
 
     /* Bottom Control Floating Island */
     .bottom-island {
@@ -364,12 +414,7 @@
       box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14);
     }
 
-    .slider-container {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
+    .slider-container { display: flex; flex-direction: column; gap: 8px; }
     .slider-header {
       display: flex;
       justify-content: space-between;
@@ -443,20 +488,8 @@
       transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    .control-item svg {
-      width: 18px;
-      height: 18px;
-      stroke-width: 1.75;
-      stroke: currentColor;
-      fill: none;
-    }
-
-    .control-item span {
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: -0.01em;
-    }
-
+    .control-item svg { width: 18px; height: 18px; stroke-width: 1.75; stroke: currentColor; fill: none; }
+    .control-item span { font-size: 11px; font-weight: 500; letter-spacing: -0.01em; }
     .control-item:hover { color: var(--accent); background: rgba(255, 255, 255, 0.06); }
     .control-item.active {
       background: var(--active-bg);
@@ -516,14 +549,10 @@
     }
 
     @media (max-width: 768px) {
-      .specs-card {
-        display: none; /* Hide full sidebar specs on compact phones to avoid crowding */
-      }
-      .info-flyout {
-        left: 20px;
-        right: 20px;
-        width: auto;
-      }
+      .specs-card { display: none; }
+      .info-flyout { left: 20px; right: 20px; width: auto; }
+      .callout-line { display: none; }
+      .callout-tag { left: 16px; top: -14px; }
     }
   </style>
 </head>
@@ -587,16 +616,14 @@
           <span>LIVE AR</span>
         </div>
       </div>
-      <div class="specs-grid" id="hud-specs-list">
-        <!-- Dynamically populated per model -->
-      </div>
+      <div class="specs-grid" id="hud-specs-list"></div>
     </aside>
 
     <!-- Part Callout Details Flyout (Right Panel) -->
     <article class="info-flyout glass-panel" id="info-flyout">
       <div class="info-header">
         <div>
-          <div class="info-tag" id="flyout-tag">COMPONENT</div>
+          <div class="info-category" id="flyout-tag">COMPONENT</div>
           <div class="info-name" id="flyout-name">Part Name</div>
         </div>
         <button class="info-close" onclick="closeFlyout()">
@@ -604,12 +631,10 @@
         </button>
       </div>
       <p class="info-body" id="flyout-desc">Part functional description goes here.</p>
-      <div class="info-spec-list" id="flyout-specs">
-        <!-- Detailed specs populated per part -->
-      </div>
+      <div class="info-spec-list" id="flyout-specs"></div>
     </article>
 
-    <!-- 3D & Native AR Viewport with Hotspots -->
+    <!-- 3D & Native AR Viewport -->
     <model-viewer
       id="engine-viewer"
       src="assets/jet_engine.glb"
@@ -620,18 +645,16 @@
       camera-controls
       touch-action="pan-y"
       auto-rotate
-      auto-rotate-delay="3000"
-      rotation-per-second="10deg"
+      auto-rotate-delay="4000"
+      rotation-per-second="8deg"
       shadow-intensity="1.2"
       shadow-softness="0.8"
       exposure="1.15"
       environment-image="neutral"
       alt="Interactive 3D Assembly Model">
 
-      <!-- Dynamic Hotspot Callout Pins (Rendered inside 3D space onto the parts) -->
-      <div id="hotspots-container">
-        <!-- Injected via JavaScript based on model -->
-      </div>
+      <!-- Direct children with slot="hotspot-..." for Web Component slotting -->
+      <!-- Will be populated dynamically via JavaScript directly on <model-viewer> -->
 
     </model-viewer>
 
@@ -707,7 +730,7 @@
   </div>
 
   <script>
-    // --- Data Definitions for Statistical HUD & Part Callouts ---
+    // Exact 3D coordinates aligned with the model geometry
     const MODEL_DATA = {
       engine: {
         title: "AERO-CORE TURBOFAN",
@@ -723,25 +746,25 @@
           {
             id: "fan",
             slot: "hotspot-fan",
-            pos: "0m 1.0m 1.4m",
-            norm: "0m 0m 1m",
+            pos: "0 1.0 0.35",
+            norm: "0 0 1",
             index: "1",
-            name: "Wide-Chord Fan Rotor",
+            title: "Fan Rotor",
             tag: "AERODYNAMICS",
             desc: "Titanium alloy forward blades providing 85% of total engine thrust by accelerating mass airflow around the core bypass duct.",
             details: [
               { key: "Blade Count", val: "24 Swept Aerofoils" },
-              { key: "Tip Speed", val: "Mach 1.35" },
+              { key: "Tip Velocity", val: "Mach 1.35" },
               { key: "Impact Rating", val: "FAA 8-lb Bird Strike Certified" }
             ]
           },
           {
             id: "casing",
             slot: "hotspot-casing",
-            pos: "1.05m 1.0m 0.0m",
-            norm: "1m 0m 0m",
+            pos: "1.02 1.0 0",
+            norm: "1 0 0",
             index: "2",
-            name: "Nacelle Containment Casing",
+            title: "Nacelle Casing",
             tag: "STRUCTURAL",
             desc: "Armored composite and aluminum casing designed to absorb blade-off events and maintain structural containment under high aerodynamic load.",
             details: [
@@ -752,10 +775,10 @@
           {
             id: "core",
             slot: "hotspot-core",
-            pos: "0m 1.0m -1.2m",
-            norm: "0m 0m -1m",
+            pos: "0 1.0 -0.85",
+            norm: "0 0 -1",
             index: "3",
-            name: "High-Pressure Turbine Core",
+            title: "Turbine Core",
             tag: "THERMODYNAMICS",
             desc: "Extracts kinetic energy from combusted expansion gases to drive the primary compressor and accessory gearbox.",
             details: [
@@ -767,10 +790,10 @@
           {
             id: "cone",
             slot: "hotspot-cone",
-            pos: "0m 1.0m 1.8m",
-            norm: "0m 0m 1m",
+            pos: "0 1.0 0.95",
+            norm: "0 0 1",
             index: "4",
-            name: "Inlet Nose Spinner Cone",
+            title: "Nose Cone",
             tag: "FLOW GUIDANCE",
             desc: "Aerodynamically deflects incoming supersonic airflow into the fan root and sheds ice during adverse meteorological conditions.",
             details: [
@@ -794,10 +817,10 @@
           {
             id: "motor-body",
             slot: "hotspot-motor-body",
-            pos: "0m 0.3m 0.0m",
-            norm: "0m 1m 0m",
+            pos: "0 0.31 0",
+            norm: "0 1 0",
             index: "1",
-            name: "Brushless Stator Housing",
+            title: "Stator Housing",
             tag: "ELECTROMAGNETIC",
             desc: "Extruded brushed-iron stator housing enclosing permanent neodymium magnets and concentrated copper windings for delta-robot kinematics.",
             details: [
@@ -808,10 +831,10 @@
           {
             id: "damper",
             slot: "hotspot-damper",
-            pos: "0m 0.3m 0.9m",
-            norm: "0m 0m 1m",
+            pos: "0 0.31 -0.06",
+            norm: "0 0 -1",
             index: "2",
-            name: "Vibration Damper Coupling",
+            title: "Vibration Damper",
             tag: "MECHANICAL",
             desc: "Isolates high-frequency robotic delta arm vibrations and prevents torsional harmonic shock from damaging the shaft bearings.",
             details: [
@@ -822,10 +845,10 @@
           {
             id: "mount",
             slot: "hotspot-mount",
-            pos: "0m 0.3m 0.45m",
-            norm: "0m 0m 1m",
+            pos: "0 0.31 0.15",
+            norm: "0 0 1",
             index: "3",
-            name: "Engine Flange Mount",
+            title: "Flange Mount",
             tag: "CHASSIS",
             desc: "Precision CNC-machined anodized aluminum mounting bracket engineered for rigid alignment with the delta robot upper arm pivot.",
             details: [
@@ -836,10 +859,10 @@
           {
             id: "plug",
             slot: "hotspot-plug",
-            pos: "0m 0.85m -0.5m",
-            norm: "0m 1m 0m",
+            pos: "0 0.78 -1.02",
+            norm: "0 1 0",
             index: "4",
-            name: "Quick-Lock Power Plug",
+            title: "Quick-Lock Plug",
             tag: "CONNECTIVITY",
             desc: "Heavy-duty 90-degree rotatable M12 industrial connector carrying DC bus power and digital encoder telemetry feedback.",
             details: [
@@ -870,7 +893,6 @@
     const flyoutName = document.getElementById('flyout-name');
     const flyoutDesc = document.getElementById('flyout-desc');
     const flyoutSpecs = document.getElementById('flyout-specs');
-    const hotspotsContainer = document.getElementById('hotspots-container');
 
     let currentModelType = 'engine';
     let isPlaying = false;
@@ -878,7 +900,7 @@
     let transitionTimer = null;
     let hotspotsVisible = true;
 
-    // Initialize HUD and Hotspots
+    // Direct slot mounting on viewer
     renderModelData('engine');
 
     viewer.addEventListener('load', () => {
@@ -891,7 +913,7 @@
       const data = MODEL_DATA[type];
       hudTitle.innerText = data.title;
 
-      // Render Left HUD
+      // Render Specs Sidebar
       hudList.innerHTML = data.specs.map(s => `
         <div class="spec-item">
           <span class="spec-key">${s.key}</span>
@@ -899,18 +921,33 @@
         </div>
       `).join('');
 
-      // Render 3D Model Hotspots
-      hotspotsContainer.innerHTML = data.hotspots.map(h => `
-        <button 
-          class="hotspot-pin" 
-          slot="${h.slot}" 
-          data-position="${h.pos}" 
-          data-normal="${h.norm}" 
-          onclick="showPartDetails('${type}', '${h.id}')"
-          title="${h.name}">
-          ${h.index}
-        </button>
-      `).join('');
+      // Remove existing hotspots directly from viewer children
+      const existing = viewer.querySelectorAll('.callout-anchor');
+      existing.forEach(e => e.remove());
+
+      // Append new hotspots directly as children of <model-viewer>
+      data.hotspots.forEach(h => {
+        const btn = document.createElement('button');
+        btn.className = 'callout-anchor';
+        btn.setAttribute('slot', h.slot);
+        btn.setAttribute('data-position', h.pos);
+        btn.setAttribute('data-normal', h.norm);
+        btn.setAttribute('title', h.title);
+        btn.onclick = () => showPartDetails(type, h.id);
+
+        btn.innerHTML = `
+          <div class="callout-dot"></div>
+          <svg class="callout-line" viewBox="0 0 44 32">
+            <polyline points="0,30 20,30 40,4" />
+          </svg>
+          <div class="callout-tag">
+            <span class="callout-num">${h.index}</span>
+            <span class="callout-text">${h.title}</span>
+          </div>
+        `;
+
+        viewer.appendChild(btn);
+      });
     }
 
     function showPartDetails(type, partId) {
@@ -918,7 +955,7 @@
       if (!part) return;
 
       flyoutTag.innerText = part.tag;
-      flyoutName.innerText = part.name;
+      flyoutName.innerText = part.title;
       flyoutDesc.innerText = part.desc;
       flyoutSpecs.innerHTML = part.details.map(d => `
         <div class="info-row">
@@ -936,7 +973,8 @@
 
     function toggleHotspots() {
       hotspotsVisible = !hotspotsVisible;
-      hotspotsContainer.style.display = hotspotsVisible ? 'block' : 'none';
+      const anchors = viewer.querySelectorAll('.callout-anchor');
+      anchors.forEach(a => a.style.display = hotspotsVisible ? 'block' : 'none');
       document.getElementById('btn-toggle-hotspots').classList.toggle('active', hotspotsVisible);
       if (!hotspotsVisible) closeFlyout();
     }
