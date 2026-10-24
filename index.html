@@ -1426,8 +1426,14 @@
 
     function seekToPercent(percent) {
       updateUI(percent);
-      const targetTime = 0.83 + (percent / 100.0) * (2.16 - 0.83);
-      viewer.currentTime = (percent === 0) ? 0.0 : targetTime;
+      if (currentModelType === 'radial') {
+        // Radial 7-Cyl engine: 0% to 100% controls 0 to 4.0s full rotation cycle
+        viewer.currentTime = (percent / 100.0) * (viewer.duration || 4.0);
+      } else {
+        // Jet Engine and Motor explode assembly range
+        const targetTime = 0.83 + (percent / 100.0) * (2.16 - 0.83);
+        viewer.currentTime = (percent === 0) ? 0.0 : targetTime;
+      }
     }
 
     function updateUI(percent) {
@@ -1480,11 +1486,16 @@
       autoPlayInterval = setInterval(() => {
         const t = viewer.currentTime;
         let p = 0;
-        if (t <= 0.83) p = 0;
-        else if (t <= 2.16) p = ((t - 0.83) / (2.16 - 0.83)) * 100;
-        else if (t <= 2.83) p = 100;
-        else if (t <= 3.83) p = 100 - (((t - 2.83) / (3.83 - 2.83)) * 100);
-        else p = 0;
+        if (currentModelType === 'radial') {
+          const dur = viewer.duration || 4.0;
+          p = (t / dur) * 100;
+        } else {
+          if (t <= 0.83) p = 0;
+          else if (t <= 2.16) p = ((t - 0.83) / (2.16 - 0.83)) * 100;
+          else if (t <= 2.83) p = 100;
+          else if (t <= 3.83) p = 100 - (((t - 2.83) / (3.83 - 2.83)) * 100);
+          else p = 0;
+        }
 
         p = Math.max(0, Math.min(100, p));
         slider.value = p;
