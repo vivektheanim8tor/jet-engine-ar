@@ -785,6 +785,10 @@
           <svg viewBox="0 0 24 24" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line></svg>
           <span>Robot Motor</span>
         </button>
+        <button class="selector-tab" id="tab-radial" onclick="switchModel('radial')">
+          <svg viewBox="0 0 24 24" stroke-width="1.8"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path></svg>
+          <span>Radial 7-Cyl</span>
+        </button>
       </nav>
 
       <div class="top-actions">
@@ -1117,6 +1121,92 @@
             label: "ASSEMBLY EXTRACTION AXIS"
           }
         ]
+      },
+      radial: {
+        title: "GNOME 7-CYL ROTARY",
+        specs: [
+          { key: "Engine Type", val: "7-Cylinder Rotary Radial" },
+          { key: "Power Output", val: "50 HP (37 kW)" },
+          { key: "Displacement", val: "7.98 Litres" },
+          { key: "Rated Speed", val: "1,200 RPM" },
+          { key: "Compression", val: "4.2 : 1" },
+          { key: "Bore x Stroke", val: "110 mm x 120 mm" }
+        ],
+        hotspots: [
+          {
+            id: "cylinder-head",
+            slot: "hotspot-cyl-head",
+            pos: "0 1.6 0.15",
+            norm: "0 1 0",
+            index: "1",
+            title: "Cylinder Barrel & Fins",
+            tag: "THERMAL DISSIPATION",
+            desc: "Machined forged-steel air-cooled cylinder with integrated cooling fins rotating through ambient air for active heat rejection.",
+            details: [
+              { key: "Cooling", val: "Rotary Air Slipstream" },
+              { key: "Valves", val: "Overhead Exhaust Valve" }
+            ]
+          },
+          {
+            id: "crankcase",
+            slot: "hotspot-crankcase",
+            pos: "0 0.72 0.35",
+            norm: "0 0 1",
+            index: "2",
+            title: "Rotary Crankcase",
+            tag: "POWERTRAIN",
+            desc: "Central rotating crankcase housing planetary master-and-articulating connecting rods orbiting a stationary crankshaft.",
+            details: [
+              { key: "Arrangement", val: "1 Master + 6 Articulating" },
+              { key: "Lubrication", val: "Castor Oil Total-Loss" }
+            ]
+          },
+          {
+            id: "propeller-hub",
+            slot: "hotspot-prop-hub",
+            pos: "0 0.72 0.58",
+            norm: "0 0 1",
+            index: "3",
+            title: "Propeller Flange Hub",
+            tag: "AERODYNAMICS",
+            desc: "Rigid front propeller mounting face keyed directly to the rotating front crankcase housing for wooden airscrew attachment.",
+            details: [
+              { key: "Mounting", val: "8-Bolt Aviation PCD" },
+              { key: "Drive", val: "Direct 1:1 Engine Speed" }
+            ]
+          },
+          {
+            id: "chassis-stand",
+            slot: "hotspot-stand",
+            pos: "0.45 0.15 -0.3",
+            norm: "1 0 0",
+            index: "4",
+            title: "Test Chassis Stand",
+            tag: "STRUCTURE",
+            desc: "Heavy-duty steel workshop testing stand providing vibration dampening and secure mounting during calibration and display.",
+            details: [
+              { key: "Frame", val: "Welded Tubular Steel" },
+              { key: "Rating", val: "Static Engine Test Rig" }
+            ]
+          }
+        ],
+        motionGraphics: [
+          {
+            slot: "hotspot-vfx-radial-spin",
+            pos: "0 0.72 0.42",
+            norm: "0 0 1",
+            type: "rotation",
+            label: "RADIAL ROTATION • 1,200 RPM"
+          },
+          {
+            slot: "hotspot-vfx-radial-exhaust",
+            pos: "0 1.7 -0.2",
+            norm: "0 1 0",
+            type: "stream",
+            dir: "forward",
+            label: "ROTARY SLIPSTREAM"
+          }
+        ]
       }
     };
 
@@ -1299,12 +1389,18 @@
 
       document.getElementById('tab-engine').classList.toggle('active', type === 'engine');
       document.getElementById('tab-motor').classList.toggle('active', type === 'motor');
+      document.getElementById('tab-radial').classList.toggle('active', type === 'radial');
 
       renderModelData(type);
 
       const ts = Date.now();
-      const newSrc = (type === 'engine') ? `assets/jet_engine.glb?v=${ts}` : `assets/robot_motor.glb?v=${ts}`;
-      assemblyLabel.innerText = (type === 'engine') ? 'Turbofan Assembly State' : 'Robot Drive Motor Assembly State';
+      let newSrc = `assets/jet_engine.glb?v=${ts}`;
+      if (type === 'motor') newSrc = `assets/robot_motor.glb?v=${ts}`;
+      else if (type === 'radial') newSrc = `assets/cylinder_engine.glb?v=${ts}`;
+
+      if (type === 'engine') assemblyLabel.innerText = 'Turbofan Assembly State';
+      else if (type === 'motor') assemblyLabel.innerText = 'Robot Drive Motor Assembly State';
+      else if (type === 'radial') assemblyLabel.innerText = 'Gnome 7-Cyl Rotary Engine State';
 
       viewer.removeAttribute('src');
       setTimeout(() => {
