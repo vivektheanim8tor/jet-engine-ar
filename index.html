@@ -534,15 +534,23 @@
       document.getElementById('tab-engine').classList.toggle('active', type === 'engine');
       document.getElementById('tab-motor').classList.toggle('active', type === 'motor');
 
-      if (type === 'engine') {
-        viewer.src = 'assets/jet_engine.glb';
-        assemblyLabel.innerText = 'Turbofan Assembly State';
-      } else {
-        viewer.src = 'assets/robot_motor.glb';
-        assemblyLabel.innerText = 'Robot Drive Motor Assembly State';
-      }
-      seekToPercent(0);
-      resetCamera();
+      // Update source
+      const newSrc = (type === 'engine') ? 'assets/jet_engine.glb' : 'assets/robot_motor.glb';
+      assemblyLabel.innerText = (type === 'engine') ? 'Turbofan Assembly State' : 'Robot Drive Motor Assembly State';
+
+      viewer.src = newSrc;
+      viewer.currentTime = 0;
+      updateUI(0);
+
+      // Force model-viewer to reframe the camera bounds once the new model loads
+      const onModelLoad = () => {
+        viewer.removeEventListener('load', onModelLoad);
+        viewer.pause();
+        viewer.currentTime = 0;
+        resetCamera();
+        updateUI(0);
+      };
+      viewer.addEventListener('load', onModelLoad);
     }
 
     slider.addEventListener('input', (e) => {
