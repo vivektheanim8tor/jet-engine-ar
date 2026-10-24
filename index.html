@@ -3,16 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>AeroCore & Festo AR Suite</title>
+  <title>AeroCore & Festo AR Suite - Interactive Engineering Data</title>
   <!-- Google model-viewer -->
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
   <style>
     :root {
-      --glass-bg: rgba(22, 22, 26, 0.72);
+      --glass-bg: rgba(20, 20, 24, 0.72);
       --glass-border: rgba(255, 255, 255, 0.14);
       --glass-border-hover: rgba(255, 255, 255, 0.3);
       --accent: #f5f5f7;
-      --accent-muted: #86868b;
+      --accent-muted: #94a3b8;
       --accent-active: #ffffff;
       --active-bg: rgba(255, 255, 255, 0.18);
       --blur: blur(28px) saturate(190%);
@@ -42,7 +42,7 @@
       position: relative;
       width: 100%;
       height: 100%;
-      background: radial-gradient(circle at 50% 35%, #1c1c21 0%, #09090b 100%);
+      background: radial-gradient(circle at 50% 35%, #18181f 0%, #09090b 100%);
     }
 
     model-viewer {
@@ -73,7 +73,6 @@
       z-index: 20;
     }
 
-    /* Model Switcher Pill in Top Left */
     .model-selector {
       pointer-events: auto;
       border-radius: var(--radius-lg);
@@ -105,10 +104,7 @@
       fill: none;
     }
 
-    .selector-tab:hover {
-      color: var(--accent);
-    }
-
+    .selector-tab:hover { color: var(--accent); }
     .selector-tab.active {
       background: var(--active-bg);
       color: var(--accent-active);
@@ -144,6 +140,12 @@
       transform: scale(1.04);
     }
 
+    .glass-btn-icon.active {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: #38bdf8;
+      color: #38bdf8;
+    }
+
     .glass-btn-ar {
       border-radius: 24px;
       padding: 0 18px;
@@ -169,6 +171,182 @@
       transform: scale(1.02);
     }
 
+    /* Left Stats HUD Card */
+    .specs-card {
+      position: absolute;
+      top: 80px;
+      left: 20px;
+      width: 250px;
+      border-radius: 18px;
+      padding: 16px;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .specs-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 8px;
+    }
+
+    .specs-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #38bdf8;
+    }
+
+    .specs-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 500;
+      color: #34d399;
+    }
+
+    .status-ping {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #34d399;
+      box-shadow: 0 0 8px #34d399;
+    }
+
+    .specs-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .spec-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      font-size: 12px;
+    }
+
+    .spec-key {
+      color: var(--accent-muted);
+      font-size: 11px;
+    }
+
+    .spec-val {
+      color: var(--accent);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* 3D AR Hotspot Callout Pins (Attached directly to model coordinates) */
+    .hotspot-pin {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1.5px solid #38bdf8;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #38bdf8;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 0 16px rgba(56, 189, 248, 0.6), inset 0 0 6px rgba(56, 189, 248, 0.4);
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s;
+    }
+
+    .hotspot-pin:hover {
+      transform: scale(1.25);
+      background: #38bdf8;
+      color: #09090b;
+    }
+
+    /* Floating Part Info Drawer / Popup */
+    .info-flyout {
+      position: absolute;
+      top: 80px;
+      right: 20px;
+      width: 300px;
+      border-radius: 20px;
+      padding: 18px 20px;
+      z-index: 20;
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
+      animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .info-flyout.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .info-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .info-tag {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #38bdf8;
+      margin-bottom: 2px;
+    }
+
+    .info-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .info-close {
+      background: none;
+      border: none;
+      color: var(--accent-muted);
+      cursor: pointer;
+      padding: 4px;
+    }
+
+    .info-close:hover { color: var(--accent); }
+
+    .info-body {
+      font-size: 12px;
+      line-height: 1.5;
+      color: #cbd5e1;
+    }
+
+    .info-spec-list {
+      margin-top: 6px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+
+    .info-row span:first-child { color: var(--accent-muted); }
+    .info-row span:last-child { color: #f1f5f9; font-weight: 500; }
+
     /* Bottom Control Floating Island */
     .bottom-island {
       position: absolute;
@@ -176,13 +354,13 @@
       left: 50%;
       transform: translateX(-50%);
       width: calc(100% - 40px);
-      max-width: 460px;
+      max-width: 480px;
       border-radius: var(--radius-lg);
       padding: 16px 20px;
       z-index: 20;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
       box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14);
     }
 
@@ -279,11 +457,7 @@
       letter-spacing: -0.01em;
     }
 
-    .control-item:hover {
-      color: var(--accent);
-      background: rgba(255, 255, 255, 0.06);
-    }
-
+    .control-item:hover { color: var(--accent); background: rgba(255, 255, 255, 0.06); }
     .control-item.active {
       background: var(--active-bg);
       color: var(--accent-active);
@@ -306,11 +480,7 @@
       transition: opacity 0.25s ease;
     }
 
-    .sheet-modal-backdrop.open {
-      display: flex;
-      opacity: 1;
-    }
-
+    .sheet-modal-backdrop.open { display: flex; opacity: 1; }
     .sheet-modal {
       width: 100%;
       max-width: 440px;
@@ -320,27 +490,9 @@
       flex-direction: column;
       gap: 16px;
     }
-
-    .modal-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .modal-title {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--accent);
-    }
-
-    .modal-close {
-      background: transparent;
-      border: none;
-      color: var(--accent-muted);
-      cursor: pointer;
-      padding: 4px;
-    }
-
+    .modal-header { display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 15px; font-weight: 600; color: var(--accent); }
+    .modal-close { background: transparent; border: none; color: var(--accent-muted); cursor: pointer; padding: 4px; }
     .modal-preview {
       width: 100%;
       max-height: 260px;
@@ -349,7 +501,6 @@
       border: 1px solid var(--glass-border);
       background: #000;
     }
-
     .modal-btn {
       width: 100%;
       padding: 12px;
@@ -362,6 +513,17 @@
       cursor: pointer;
       text-decoration: none;
       text-align: center;
+    }
+
+    @media (max-width: 768px) {
+      .specs-card {
+        display: none; /* Hide full sidebar specs on compact phones to avoid crowding */
+      }
+      .info-flyout {
+        left: 20px;
+        right: 20px;
+        width: auto;
+      }
     }
   </style>
 </head>
@@ -384,6 +546,15 @@
       </nav>
 
       <div class="top-actions">
+        <!-- Toggle Callout Pins Button -->
+        <button class="glass-btn-icon active" id="btn-toggle-hotspots" title="Toggle Part Callouts" onclick="toggleHotspots()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
+        </button>
+
         <!-- Target Pattern Sheet Icon Button -->
         <button class="glass-btn-icon" title="View Target Pattern" onclick="toggleModal(true)">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -407,7 +578,38 @@
       </div>
     </header>
 
-    <!-- 3D & Native AR Viewport -->
+    <!-- Engineering Technical Specs HUD (Left Panel) -->
+    <aside class="specs-card glass-panel" id="specs-card">
+      <div class="specs-header">
+        <span class="specs-title" id="hud-unit-title">AERO-CORE SPEC</span>
+        <div class="specs-status">
+          <div class="status-ping"></div>
+          <span>LIVE AR</span>
+        </div>
+      </div>
+      <div class="specs-grid" id="hud-specs-list">
+        <!-- Dynamically populated per model -->
+      </div>
+    </aside>
+
+    <!-- Part Callout Details Flyout (Right Panel) -->
+    <article class="info-flyout glass-panel" id="info-flyout">
+      <div class="info-header">
+        <div>
+          <div class="info-tag" id="flyout-tag">COMPONENT</div>
+          <div class="info-name" id="flyout-name">Part Name</div>
+        </div>
+        <button class="info-close" onclick="closeFlyout()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <p class="info-body" id="flyout-desc">Part functional description goes here.</p>
+      <div class="info-spec-list" id="flyout-specs">
+        <!-- Detailed specs populated per part -->
+      </div>
+    </article>
+
+    <!-- 3D & Native AR Viewport with Hotspots -->
     <model-viewer
       id="engine-viewer"
       src="assets/jet_engine.glb"
@@ -425,6 +627,12 @@
       exposure="1.15"
       environment-image="neutral"
       alt="Interactive 3D Assembly Model">
+
+      <!-- Dynamic Hotspot Callout Pins (Rendered inside 3D space onto the parts) -->
+      <div id="hotspots-container">
+        <!-- Injected via JavaScript based on model -->
+      </div>
+
     </model-viewer>
 
     <!-- Bottom Floating Island Controls -->
@@ -487,10 +695,7 @@
       <div class="modal-header">
         <h3 class="modal-title">Engineering Target Pattern</h3>
         <button class="modal-close" onclick="toggleModal(false)">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
-          </svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
       </div>
       <p style="font-size: 13px; color: var(--accent-muted); line-height: 1.4;">
@@ -502,6 +707,150 @@
   </div>
 
   <script>
+    // --- Data Definitions for Statistical HUD & Part Callouts ---
+    const MODEL_DATA = {
+      engine: {
+        title: "AERO-CORE TURBOFAN",
+        specs: [
+          { key: "Bypass Ratio", val: "10.5 : 1" },
+          { key: "Max Thrust", val: "84,500 lbf" },
+          { key: "Fan Diameter", val: "2,050 mm" },
+          { key: "Rotor Stages", val: "1 Fan + 8 HPC" },
+          { key: "Dry Weight", val: "3,810 kg" },
+          { key: "Material", val: "Ti-6Al-4V / Inconel" }
+        ],
+        hotspots: [
+          {
+            id: "fan",
+            slot: "hotspot-fan",
+            pos: "0m 1.0m 1.4m",
+            norm: "0m 0m 1m",
+            index: "1",
+            name: "Wide-Chord Fan Rotor",
+            tag: "AERODYNAMICS",
+            desc: "Titanium alloy forward blades providing 85% of total engine thrust by accelerating mass airflow around the core bypass duct.",
+            details: [
+              { key: "Blade Count", val: "24 Swept Aerofoils" },
+              { key: "Tip Speed", val: "Mach 1.35" },
+              { key: "Impact Rating", val: "FAA 8-lb Bird Strike Certified" }
+            ]
+          },
+          {
+            id: "casing",
+            slot: "hotspot-casing",
+            pos: "1.05m 1.0m 0.0m",
+            norm: "1m 0m 0m",
+            index: "2",
+            name: "Nacelle Containment Casing",
+            tag: "STRUCTURAL",
+            desc: "Armored composite and aluminum casing designed to absorb blade-off events and maintain structural containment under high aerodynamic load.",
+            details: [
+              { key: "Lining", val: "Kevlar Acoustic Treatment" },
+              { key: "Acoustic Attenuation", val: "-14 dB EPNL" }
+            ]
+          },
+          {
+            id: "core",
+            slot: "hotspot-core",
+            pos: "0m 1.0m -1.2m",
+            norm: "0m 0m -1m",
+            index: "3",
+            name: "High-Pressure Turbine Core",
+            tag: "THERMODYNAMICS",
+            desc: "Extracts kinetic energy from combusted expansion gases to drive the primary compressor and accessory gearbox.",
+            details: [
+              { key: "Inlet Temperature", val: "1,650 °C" },
+              { key: "Cooling Method", val: "Internal Film & Impingement" },
+              { key: "Single-Crystal Alloy", val: "CMSX-4 Superalloy" }
+            ]
+          },
+          {
+            id: "cone",
+            slot: "hotspot-cone",
+            pos: "0m 1.0m 1.8m",
+            norm: "0m 0m 1m",
+            index: "4",
+            name: "Inlet Nose Spinner Cone",
+            tag: "FLOW GUIDANCE",
+            desc: "Aerodynamically deflects incoming supersonic airflow into the fan root and sheds ice during adverse meteorological conditions.",
+            details: [
+              { key: "Geometry", val: "Parabolic Anti-Icing Cone" },
+              { key: "Surface Feature", val: "Spiral Ground Warning Stencil" }
+            ]
+          }
+        ]
+      },
+      motor: {
+        title: "FESTO DELTA SERVO",
+        specs: [
+          { key: "Rated Torque", val: "0.65 Nm" },
+          { key: "Peak Speed", val: "6,000 RPM" },
+          { key: "Operating Voltage", val: "24 VDC" },
+          { key: "Rated Power", val: "230 W" },
+          { key: "Enclosure Class", val: "IP65 Rated" },
+          { key: "Feedback Encoder", val: "Absolute Multi-turn" }
+        ],
+        hotspots: [
+          {
+            id: "motor-body",
+            slot: "hotspot-motor-body",
+            pos: "0m 0.3m 0.0m",
+            norm: "0m 1m 0m",
+            index: "1",
+            name: "Brushless Stator Housing",
+            tag: "ELECTROMAGNETIC",
+            desc: "Extruded brushed-iron stator housing enclosing permanent neodymium magnets and concentrated copper windings for delta-robot kinematics.",
+            details: [
+              { key: "Poles", val: "8-Pole Synchronous AC" },
+              { key: "Thermal Sensor", val: "PT1000 Integrated" }
+            ]
+          },
+          {
+            id: "damper",
+            slot: "hotspot-damper",
+            pos: "0m 0.3m 0.9m",
+            norm: "0m 0m 1m",
+            index: "2",
+            name: "Vibration Damper Coupling",
+            tag: "MECHANICAL",
+            desc: "Isolates high-frequency robotic delta arm vibrations and prevents torsional harmonic shock from damaging the shaft bearings.",
+            details: [
+              { key: "Elastomer", val: "Shore 98A Polyurethane" },
+              { key: "Backlash", val: "Zero-Backlash Jaw Coupling" }
+            ]
+          },
+          {
+            id: "mount",
+            slot: "hotspot-mount",
+            pos: "0m 0.3m 0.45m",
+            norm: "0m 0m 1m",
+            index: "3",
+            name: "Engine Flange Mount",
+            tag: "CHASSIS",
+            desc: "Precision CNC-machined anodized aluminum mounting bracket engineered for rigid alignment with the delta robot upper arm pivot.",
+            details: [
+              { key: "Bolt Pattern", val: "4x M5 PCD 75mm" },
+              { key: "Surface", val: "Hard-Anodized MIL-A-8625" }
+            ]
+          },
+          {
+            id: "plug",
+            slot: "hotspot-plug",
+            pos: "0m 0.85m -0.5m",
+            norm: "0m 1m 0m",
+            index: "4",
+            name: "Quick-Lock Power Plug",
+            tag: "CONNECTIVITY",
+            desc: "Heavy-duty 90-degree rotatable M12 industrial connector carrying DC bus power and digital encoder telemetry feedback.",
+            details: [
+              { key: "Locking", val: "Speedcon Push-Pull" },
+              { key: "Gold Pins", val: "50µin Hard Gold Plated" }
+            ]
+          }
+        ]
+      }
+    };
+
     const viewer = document.getElementById('engine-viewer');
     const slider = document.getElementById('anim-slider');
     const fill = document.getElementById('scrubber-fill');
@@ -514,10 +863,23 @@
     const modal = document.getElementById('pattern-modal');
     const assemblyLabel = document.getElementById('assembly-label');
 
+    const hudTitle = document.getElementById('hud-unit-title');
+    const hudList = document.getElementById('hud-specs-list');
+    const flyout = document.getElementById('info-flyout');
+    const flyoutTag = document.getElementById('flyout-tag');
+    const flyoutName = document.getElementById('flyout-name');
+    const flyoutDesc = document.getElementById('flyout-desc');
+    const flyoutSpecs = document.getElementById('flyout-specs');
+    const hotspotsContainer = document.getElementById('hotspots-container');
+
     let currentModelType = 'engine';
     let isPlaying = false;
     let autoPlayInterval = null;
     let transitionTimer = null;
+    let hotspotsVisible = true;
+
+    // Initialize HUD and Hotspots
+    renderModelData('engine');
 
     viewer.addEventListener('load', () => {
       viewer.pause();
@@ -525,20 +887,72 @@
       updateUI(0);
     });
 
-    viewer.addEventListener('error', (e) => {
-      console.error('model-viewer error:', e);
-    });
+    function renderModelData(type) {
+      const data = MODEL_DATA[type];
+      hudTitle.innerText = data.title;
+
+      // Render Left HUD
+      hudList.innerHTML = data.specs.map(s => `
+        <div class="spec-item">
+          <span class="spec-key">${s.key}</span>
+          <span class="spec-val">${s.val}</span>
+        </div>
+      `).join('');
+
+      // Render 3D Model Hotspots
+      hotspotsContainer.innerHTML = data.hotspots.map(h => `
+        <button 
+          class="hotspot-pin" 
+          slot="${h.slot}" 
+          data-position="${h.pos}" 
+          data-normal="${h.norm}" 
+          onclick="showPartDetails('${type}', '${h.id}')"
+          title="${h.name}">
+          ${h.index}
+        </button>
+      `).join('');
+    }
+
+    function showPartDetails(type, partId) {
+      const part = MODEL_DATA[type].hotspots.find(h => h.id === partId);
+      if (!part) return;
+
+      flyoutTag.innerText = part.tag;
+      flyoutName.innerText = part.name;
+      flyoutDesc.innerText = part.desc;
+      flyoutSpecs.innerHTML = part.details.map(d => `
+        <div class="info-row">
+          <span>${d.key}</span>
+          <span>${d.val}</span>
+        </div>
+      `).join('');
+
+      flyout.classList.add('active');
+    }
+
+    function closeFlyout() {
+      flyout.classList.remove('active');
+    }
+
+    function toggleHotspots() {
+      hotspotsVisible = !hotspotsVisible;
+      hotspotsContainer.style.display = hotspotsVisible ? 'block' : 'none';
+      document.getElementById('btn-toggle-hotspots').classList.toggle('active', hotspotsVisible);
+      if (!hotspotsVisible) closeFlyout();
+    }
 
     function switchModel(type) {
       if (currentModelType === type) return;
       currentModelType = type;
       if (isPlaying) stopAutoPlay();
       if (transitionTimer) clearInterval(transitionTimer);
+      closeFlyout();
 
       document.getElementById('tab-engine').classList.toggle('active', type === 'engine');
       document.getElementById('tab-motor').classList.toggle('active', type === 'motor');
 
-      // Use cache buster query param to guarantee fresh load across mobile browsers
+      renderModelData(type);
+
       const ts = Date.now();
       const newSrc = (type === 'engine') ? `assets/jet_engine.glb?v=${ts}` : `assets/robot_motor.glb?v=${ts}`;
       assemblyLabel.innerText = (type === 'engine') ? 'Turbofan Assembly State' : 'Robot Drive Motor Assembly State';
