@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>AeroCore - Turbofan Assembly</title>
+  <!-- Google model-viewer -->
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+  <style>
+    :root {
+      --glass-bg: rgba(22, 22, 26, 0.65);
+      --glass-border: rgba(255, 255, 255, 0.12);
+      --glass-border-hover: rgba(255, 255, 255, 0.28);
+      --glass-glow: rgba(255, 255, 255, 0.08);
+      --accent: #f5f5f7;
+      --accent-muted: #86868b;
+      --accent-active: #ffffff;
+      --active-bg: rgba(255, 255, 255, 0.16);
+      --blur: blur(28px) saturate(190%);
+      --radius-lg: 24px;
+      --radius-md: 14px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #09090b;
+      color: #ededed;
+    }
+
+    /* Subtle luxury radial lighting background behind engine */
+    .viewport-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 50% 35%, #18181b 0%, #09090b 100%);
+    }
+
+    model-viewer {
+      width: 100%;
+      height: 100%;
+      --poster-color: transparent;
+      outline: none;
+    }
+
+    /* iOS Frosted Glass Panel Base */
+    .glass-panel {
+      background: var(--glass-bg);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.4), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+    }
+
+    /* Top Navigation Bar */
+    .top-bar {
+      position: absolute;
+      top: max(20px, env(safe-area-inset-top));
+      left: 20px;
+      right: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .brand-pill {
+      pointer-events: auto;
+      border-radius: var(--radius-lg);
+      padding: 10px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      transition: border-color 0.25s ease;
+    }
+
+    .brand-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand-badge {
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-muted);
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      pointer-events: auto;
+    }
+
+    .glass-btn-icon {
+      border-radius: 50%;
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent);
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .glass-btn-icon:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--glass-border-hover);
+      transform: scale(1.04);
+    }
+
+    .glass-btn-icon:active {
+      transform: scale(0.96);
+    }
+
+    .glass-btn-ar {
+      border-radius: 24px;
+      padding: 0 18px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      color: var(--accent);
+      border: 1px solid var(--glass-border);
+      background: var(--glass-bg);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .glass-btn-ar:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: var(--glass-border-hover);
+      transform: scale(1.02);
+    }
+
+    .glass-btn-ar:active {
+      transform: scale(0.97);
+    }
+
+    /* Bottom Control Floating Island */
+    .bottom-island {
+      position: absolute;
+      bottom: max(24px, env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 40px);
+      max-width: 460px;
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
+
+    /* Slider Track & Label */
+    .slider-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--accent-muted);
+    }
+
+    .slider-value {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .scrubber-track {
+      position: relative;
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .scrubber-progress {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 0%;
+      background: #ffffff;
+      border-radius: 3px;
+      pointer-events: none;
+      transition: width 0.05s linear;
+    }
+
+    .native-slider {
+      position: absolute;
+      inset: -8px 0;
+      width: 100%;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 5;
+    }
+
+    /* Segmented Control Bar */
+    .segmented-control {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 4px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .control-item {
+      background: transparent;
+      border: none;
+      border-radius: 12px;
+      padding: 9px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      color: var(--accent-muted);
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .control-item svg {
+      width: 18px;
+      height: 18px;
+      stroke-width: 1.75;
+      stroke: currentColor;
+      fill: none;
+      transition: stroke 0.2s ease;
+    }
+
+    .control-item span {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      transition: color 0.2s ease;
+    }
+
+    .control-item:hover {
+      color: var(--accent);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .control-item.active {
+      background: var(--active-bg);
+      color: var(--accent-active);
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    }
+
+    .control-item.active svg {
+      stroke: var(--accent-active);
+    }
+
+    /* Minimal Blueprint Target Modal */
+    .sheet-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+
+    .sheet-modal-backdrop.open {
+      display: flex;
+      opacity: 1;
+    }
+
+    .sheet-modal {
+      width: 100%;
+      max-width: 440px;
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+      transform: translateY(10px);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .sheet-modal-backdrop.open .sheet-modal {
+      transform: translateY(0);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--accent-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      border-radius: 50%;
+    }
+
+    .modal-close:hover {
+      color: var(--accent);
+    }
+
+    .modal-preview {
+      width: 100%;
+      max-height: 260px;
+      object-fit: contain;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--glass-border);
+      background: #000;
+    }
+
+    .modal-btn {
+      width: 100%;
+      padding: 12px;
+      background: #ffffff;
+      color: #09090b;
+      border: none;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
+      transition: opacity 0.2s;
+    }
+
+    .modal-btn:hover {
+      opacity: 0.9;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="viewport-container">
+
+    <!-- Top Floating Header -->
+    <header class="top-bar">
+      <div class="brand-pill glass-panel">
+        <span class="brand-title">AeroCore Turbofan</span>
+        <span class="brand-badge">Inspection Model • 1.0</span>
+      </div>
+
+      <div class="top-actions">
+        <!-- Target Pattern Sheet Icon Button -->
+        <button class="glass-btn-icon" title="View Target Pattern" onclick="toggleModal(true)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+            <polyline points="21 15 16 10 5 21"></polyline>
+          </svg>
+        </button>
+
+        <!-- View in AR Pill -->
+        <button class="glass-btn-ar" onclick="triggerAR()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 8V6a2 2 0 0 1 2-2h2"></path>
+            <path d="M4 16v2a2 2 0 0 0 2 2h2"></path>
+            <path d="M16 4h2a2 2 0 0 1 2 2v2"></path>
+            <path d="M16 20h2a2 2 0 0 0 2-2v-2"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <span>View in AR</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 3D & Native AR Viewport -->
+    <model-viewer
+      id="engine-viewer"
+      src="assets/jet_engine.glb"
+      animation-name="Explode_Assembly"
+      autoplay
+      ar
+      ar-modes="webxr scene-viewer quick-look"
+      camera-controls
+      touch-action="pan-y"
+      auto-rotate
+      auto-rotate-delay="3000"
+      rotation-per-second="10deg"
+      shadow-intensity="1.2"
+      shadow-softness="0.8"
+      exposure="1.15"
+      environment-image="neutral"
+      alt="Interactive Turbofan Jet Engine 3D Model">
+    </model-viewer>
+
+    <!-- Bottom Floating Island Controls -->
+    <div class="bottom-island glass-panel">
+      <!-- Minimalist Precision Scrubber -->
+      <div class="slider-container">
+        <div class="slider-header">
+          <span>Assembly State</span>
+          <span id="slider-percent" class="slider-value">0%</span>
+        </div>
+        <div class="scrubber-track">
+          <div id="scrubber-fill" class="scrubber-progress"></div>
+          <input type="range" id="anim-slider" class="native-slider" min="0" max="100" value="0">
+        </div>
+      </div>
+
+      <!-- Monochrome Segmented Actions -->
+      <nav class="segmented-control">
+        <!-- Assemble -->
+        <button class="control-item active" id="btn-assemble" onclick="smoothTransitionTo(0)">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+          </svg>
+          <span>Assemble</span>
+        </button>
+
+        <!-- Explode -->
+        <button class="control-item" id="btn-explode" onclick="smoothTransitionTo(100)">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <polyline points="9 21 3 21 3 15"></polyline>
+            <line x1="21" y1="3" x2="14" y2="10"></line>
+            <line x1="3" y1="21" x2="10" y2="14"></line>
+          </svg>
+          <span>Explode</span>
+        </button>
+
+        <!-- Auto Play -->
+        <button class="control-item" id="btn-play" onclick="togglePlayLoop()">
+          <svg id="play-svg" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span id="play-text">Playback</span>
+        </button>
+
+        <!-- Reset Camera -->
+        <button class="control-item" id="btn-reset" onclick="resetCamera()">
+          <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6"></path>
+            <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+          </svg>
+          <span>Recenter</span>
+        </button>
+      </nav>
+    </div>
+
+  </div>
+
+  <!-- Minimal Drawing Target Sheet Modal -->
+  <div class="sheet-modal-backdrop" id="pattern-modal" onclick="toggleModal(false)">
+    <div class="sheet-modal glass-panel" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title">Engineering Target Pattern</h3>
+        <button class="modal-close" onclick="toggleModal(false)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <p style="font-size: 13px; color: var(--accent-muted); line-height: 1.4;">
+        Print or display this pattern to anchor the 3D model with optical tracking:
+      </p>
+      <img src="assets/pattern_marker.png" class="modal-preview" alt="Tracking Target Pattern">
+      <a href="assets/pattern_marker.png" download="Turbofan_Pattern_Marker.png" class="modal-btn">Save Printable Pattern</a>
+    </div>
+  </div>
+
+  <script>
+    const viewer = document.getElementById('engine-viewer');
+    const slider = document.getElementById('anim-slider');
+    const fill = document.getElementById('scrubber-fill');
+    const percentText = document.getElementById('slider-percent');
+    const playBtn = document.getElementById('btn-play');
+    const playSvg = document.getElementById('play-svg');
+    const playText = document.getElementById('play-text');
+    const btnAssemble = document.getElementById('btn-assemble');
+    const btnExplode = document.getElementById('btn-explode');
+    const modal = document.getElementById('pattern-modal');
+
+    let isPlaying = false;
+    let autoPlayInterval = null;
+    let transitionTimer = null;
+
+    viewer.addEventListener('load', () => {
+      viewer.pause();
+      viewer.currentTime = 0;
+      updateUI(0);
+    });
+
+    slider.addEventListener('input', (e) => {
+      if (isPlaying) stopAutoPlay();
+      if (transitionTimer) clearInterval(transitionTimer);
+      const val = parseFloat(e.target.value);
+      seekToPercent(val);
+    });
+
+    function seekToPercent(percent) {
+      updateUI(percent);
+      const targetTime = 0.83 + (percent / 100.0) * (2.16 - 0.83);
+      viewer.currentTime = (percent === 0) ? 0.0 : targetTime;
+    }
+
+    function updateUI(percent) {
+      slider.value = percent;
+      fill.style.width = percent + '%';
+      percentText.innerText = Math.round(percent) + '%';
+
+      if (percent < 8) {
+        btnAssemble.classList.add('active');
+        btnExplode.classList.remove('active');
+      } else if (percent > 92) {
+        btnExplode.classList.add('active');
+        btnAssemble.classList.remove('active');
+      } else {
+        btnAssemble.classList.remove('active');
+        btnExplode.classList.remove('active');
+      }
+    }
+
+    function smoothTransitionTo(targetPercent) {
+      if (isPlaying) stopAutoPlay();
+      if (transitionTimer) clearInterval(transitionTimer);
+
+      let current = parseFloat(slider.value);
+      const step = (targetPercent > current) ? 2.5 : -2.5;
+
+      transitionTimer = setInterval(() => {
+        current += step;
+        if ((step > 0 && current >= targetPercent) || (step < 0 && current <= targetPercent)) {
+          current = targetPercent;
+          clearInterval(transitionTimer);
+        }
+        seekToPercent(current);
+      }, 16);
+    }
+
+    function togglePlayLoop() {
+      if (isPlaying) {
+        stopAutoPlay();
+      } else {
+        startAutoPlay();
+      }
+    }
+
+    function startAutoPlay() {
+      if (transitionTimer) clearInterval(transitionTimer);
+      isPlaying = true;
+      viewer.play();
+      playText.innerText = 'Pause';
+      playBtn.classList.add('active');
+      playSvg.innerHTML = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
+
+      autoPlayInterval = setInterval(() => {
+        const t = viewer.currentTime;
+        let p = 0;
+        if (t <= 0.83) p = 0;
+        else if (t <= 2.16) p = ((t - 0.83) / (2.16 - 0.83)) * 100;
+        else if (t <= 2.83) p = 100;
+        else if (t <= 3.83) p = 100 - (((t - 2.83) / (3.83 - 2.83)) * 100);
+        else p = 0;
+
+        p = Math.max(0, Math.min(100, p));
+        slider.value = p;
+        fill.style.width = p + '%';
+        percentText.innerText = Math.round(p) + '%';
+      }, 33);
+    }
+
+    function stopAutoPlay() {
+      isPlaying = false;
+      viewer.pause();
+      playText.innerText = 'Playback';
+      playBtn.classList.remove('active');
+      playSvg.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
+      if (autoPlayInterval) clearInterval(autoPlayInterval);
+    }
+
+    function resetCamera() {
+      viewer.cameraOrbit = '45deg 75deg 105%';
+      viewer.cameraTarget = 'auto auto auto';
+    }
+
+    function triggerAR() {
+      if (viewer.canActivateAR) {
+        viewer.activateAR();
+      } else {
+        alert("Launch AR on iOS Safari or Android Chrome to project the engine onto any physical surface.");
+      }
+    }
+
+    function toggleModal(show) {
+      if (show) {
+        modal.classList.add('open');
+      } else {
+        modal.classList.remove('open');
+      }
+    }
+  </script>
+</body>
+</html>

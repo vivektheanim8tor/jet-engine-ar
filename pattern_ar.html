@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>AeroCore - Optical Tracking AR</title>
+  <!-- A-Frame & MindAR -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
+  <style>
+    :root {
+      --glass-bg: rgba(22, 22, 26, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.14);
+      --blur: blur(28px) saturate(190%);
+      --accent: #f5f5f7;
+      --accent-muted: #86868b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+    }
+
+    .glass-panel {
+      background: var(--glass-bg);
+      backdrop-filter: var(--blur);
+      -webkit-backdrop-filter: var(--blur);
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Top Minimal Status Pill */
+    .status-island {
+      position: fixed;
+      top: max(20px, env(safe-area-inset-top));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      border-radius: 24px;
+      padding: 8px 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      transition: background 0.3s ease;
+    }
+
+    .status-dot.active {
+      background: #34d399;
+      box-shadow: 0 0 10px #34d399;
+    }
+
+    /* Bottom Control Bar */
+    .bottom-island {
+      position: fixed;
+      bottom: max(24px, env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      border-radius: 30px;
+      padding: 6px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .glass-btn {
+      background: transparent;
+      border: none;
+      border-radius: 24px;
+      padding: 10px 20px;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      color: var(--accent-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .glass-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke-width: 1.8;
+      stroke: currentColor;
+      fill: none;
+    }
+
+    .glass-btn:hover {
+      color: var(--accent);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .glass-btn.active {
+      background: rgba(255, 255, 255, 0.16);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Status Pill -->
+  <div class="status-island glass-panel" id="status-pill">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-label">Align camera with target pattern</span>
+  </div>
+
+  <!-- Bottom Floating Island -->
+  <div class="bottom-island glass-panel">
+    <button class="glass-btn" id="btn-anim" onclick="togglePlayAnimation()">
+      <svg id="anim-icon" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+      </svg>
+      <span id="anim-label">Explode Assembly</span>
+    </button>
+    <button class="glass-btn" onclick="resetAnimation()">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.5 2v6h-6"></path>
+        <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+      </svg>
+      <span>Reset</span>
+    </button>
+  </div>
+
+  <a-scene 
+    mindar-image="imageTargetSrc: assets/targets.mind; filterMinCF: 0.0001; filterBeta: 0.001;" 
+    color-space="sRGB" 
+    renderer="colorManagement: true, physicallyCorrectLights: true" 
+    vr-mode-ui="enabled: false" 
+    device-orientation-permission-ui="enabled: false">
+    
+    <a-assets>
+      <a-asset-item id="jetModel" src="assets/jet_engine.glb"></a-asset-item>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <!-- Anchors the 3D model directly onto the detected printed target -->
+    <a-entity mindar-image-target="targetIndex: 0" id="target">
+      <a-entity 
+        id="engineEntity"
+        gltf-model="#jetModel"
+        rotation="90 0 0"
+        position="0 0 0.1" 
+        scale="0.22 0.22 0.22"
+        animation-mixer="clip: Explode_Assembly; loop: repeat; timeScale: 0">
+      </a-entity>
+    </a-entity>
+
+  </a-scene>
+
+  <script>
+    const pill = document.getElementById('status-pill');
+    const dot = document.getElementById('status-dot');
+    const label = document.getElementById('status-label');
+    const target = document.getElementById('target');
+    const engineEntity = document.getElementById('engineEntity');
+    const animBtn = document.getElementById('btn-anim');
+    const animIcon = document.getElementById('anim-icon');
+    const animLabel = document.getElementById('anim-label');
+
+    let isPlaying = false;
+
+    target.addEventListener("targetFound", () => {
+      label.innerText = "Target Locked";
+      dot.classList.add('active');
+    });
+
+    target.addEventListener("targetLost", () => {
+      label.innerText = "Align camera with target pattern";
+      dot.classList.remove('active');
+    });
+
+    function togglePlayAnimation() {
+      isPlaying = !isPlaying;
+      if (isPlaying) {
+        engineEntity.setAttribute('animation-mixer', 'clip: Explode_Assembly; loop: repeat; timeScale: 1');
+        animIcon.innerHTML = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
+        animLabel.innerText = 'Pause';
+        animBtn.classList.add('active');
+      } else {
+        engineEntity.setAttribute('animation-mixer', 'timeScale: 0');
+        animIcon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
+        animLabel.innerText = 'Explode Assembly';
+        animBtn.classList.remove('active');
+      }
+    }
+
+    function resetAnimation() {
+      isPlaying = false;
+      engineEntity.setAttribute('animation-mixer', 'clip: Explode_Assembly; loop: repeat; timeScale: 0');
+      animIcon.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
+      animLabel.innerText = 'Explode Assembly';
+      animBtn.classList.remove('active');
+    }
+  </script>
+</body>
+</html>

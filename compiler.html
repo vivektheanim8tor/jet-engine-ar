@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline MindAR Target Generator</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      max-width: 650px;
+      margin: 40px auto;
+      padding: 0 20px;
+      line-height: 1.5;
+      background: #0f172a;
+      color: #f8fafc;
+    }
+    .card {
+      background: #1e293b;
+      padding: 24px;
+      border-radius: 12px;
+      border: 1px solid #334155;
+    }
+    input[type="file"] {
+      display: block;
+      margin: 20px 0;
+      padding: 10px;
+      background: #0f172a;
+      border: 1px solid #38bdf8;
+      border-radius: 8px;
+      color: #fff;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    #status {
+      font-weight: 600;
+      color: #38bdf8;
+      margin-bottom: 10px;
+    }
+    #progress-bar {
+      width: 100%;
+      height: 10px;
+      background: #334155;
+      border-radius: 5px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      display: none;
+    }
+    #progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #38bdf8;
+      transition: width 0.1s;
+    }
+    .btn {
+      background: #0284c7;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      display: none;
+    }
+    .btn:hover { background: #0369a1; }
+    .preview {
+      max-width: 200px;
+      margin-top: 15px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2 style="color: #38bdf8; margin-top:0;">⚡ MindAR Target Compiler</h2>
+    <p style="color: #94a3b8; font-size: 14px;">
+      Select your engineering drawing or image pattern. This will extract tracking feature points and generate your <code>targets.mind</code> file.
+    </p>
+
+    <input type="file" id="fileInput" accept="image/*">
+    <img id="imgPreview" class="preview" alt="Preview">
+
+    <div id="status">Select an image to start compiling...</div>
+    <div id="progress-bar"><div id="progress-fill"></div></div>
+
+    <button id="downloadBtn" class="btn">⬇ Download targets.mind</button>
+  </div>
+
+  <script type="module">
+    import { Compiler } from 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image.prod.js';
+
+    const fileInput = document.getElementById('fileInput');
+    const status = document.getElementById('status');
+    const progressBar = document.getElementById('progress-bar');
+    const progressFill = document.getElementById('progress-fill');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const imgPreview = document.getElementById('imgPreview');
+    let compiledData = null;
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      imgPreview.src = URL.createObjectURL(file);
+      imgPreview.style.display = 'block';
+
+      status.innerText = 'Extracting feature points (5-15 seconds)...';
+      progressBar.style.display = 'block';
+      progressFill.style.width = '0%';
+      downloadBtn.style.display = 'none';
+
+      const img = new Image();
+      img.src = imgPreview.src;
+      await img.decode();
+
+      const compiler = new Compiler();
+      await compiler.compileImageTargets([img], (percent) => {
+        progressFill.style.width = percent + '%';
+        status.innerText = `Analyzing tracking points: ${percent.toFixed(0)}%`;
+      });
+
+      compiledData = await compiler.exportData();
+      status.innerText = '✅ Compilation complete! Click below to download.';
+      downloadBtn.style.display = 'inline-block';
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      if (!compiledData) return;
+      const blob = new Blob([compiledData]);
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'targets.mind';
+      link.click();
+    });
+  </script>
+</body>
+</html>
