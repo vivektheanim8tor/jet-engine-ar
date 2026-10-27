@@ -901,6 +901,14 @@
           <span id="btn-explode-text">Explode</span>
         </button>
 
+        <button class="control-item" id="btn-spin" onclick="toggleSpin()" title="Rotate blades around central axis">
+          <svg id="spin-svg" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.5 2v6h-6"></path>
+            <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+          </svg>
+          <span id="spin-text">Spin</span>
+        </button>
+
         <button class="control-item" id="btn-play" onclick="togglePlayLoop()">
           <svg id="play-svg" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
             <polygon points="5 3 19 12 5 21 5 3"></polygon>
@@ -910,8 +918,9 @@
 
         <button class="control-item" id="btn-reset" onclick="resetCamera()">
           <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21.5 2v6h-6"></path>
-            <path d="M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+            <circle cx="12" cy="12" r="9"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="12" x2="15" y2="15"></line>
           </svg>
           <span>Recenter</span>
         </button>
@@ -1216,6 +1225,8 @@
     const playBtn = document.getElementById('btn-play');
     const playSvg = document.getElementById('play-svg');
     const playText = document.getElementById('play-text');
+    const btnSpin = document.getElementById('btn-spin');
+    const spinText = document.getElementById('spin-text');
     const btnAssemble = document.getElementById('btn-assemble');
     const btnExplode = document.getElementById('btn-explode');
     const modal = document.getElementById('pattern-modal');
@@ -1226,6 +1237,7 @@
 
     let currentModelType = 'engine';
     let isPlaying = false;
+    let isSpinning = false;
     let autoPlayInterval = null;
     let transitionTimer = null;
     let hotspotsVisible = true;
@@ -1434,6 +1446,10 @@
     });
 
     function seekToPercent(percent) {
+      if (isSpinning) stopSpin();
+      if (viewer.animationName !== 'Explode_Assembly') {
+        viewer.animationName = 'Explode_Assembly';
+      }
       updateUI(percent);
       if (currentModelType === 'radial') {
         // Radial 7-Cyl engine: keyframes are 0-25 assembled, 65-85 exploded (2.16s - 2.83s), 115-120 assembled (4.0s)
@@ -1482,14 +1498,57 @@
       }, 16);
     }
 
+    function toggleSpin() {
+      if (isSpinning) {
+        stopSpin();
+      } else {
+        startSpin();
+      }
+    }
+
+    function startSpin() {
+      if (isPlaying) stopAutoPlay();
+      if (transitionTimer) clearInterval(transitionTimer);
+      isSpinning = true;
+      btnSpin.classList.add('active');
+      spinText.innerText = 'Stop';
+
+      if (currentModelType === 'radial') {
+        // Play the Blade_Rotation animation track
+        viewer.animationName = 'Blade_Rotation';
+        viewer.play();
+      } else {
+        // Continuous turntable / blade spin
+        viewer.autoRotate = true;
+        viewer.rotationPerSecond = '72deg';
+      }
+    }
+
+    function stopSpin() {
+      isSpinning = false;
+      btnSpin.classList.remove('active');
+      spinText.innerText = 'Spin';
+
+      if (currentModelType === 'radial') {
+        viewer.pause();
+        viewer.animationName = 'Explode_Assembly';
+        seekToPercent(parseFloat(slider.value) || 0);
+      } else {
+        viewer.rotationPerSecond = '8deg';
+      }
+    }
+
     function togglePlayLoop() {
+      if (isSpinning) stopSpin();
       if (isPlaying) stopAutoPlay();
       else startAutoPlay();
     }
 
     function startAutoPlay() {
+      if (isSpinning) stopSpin();
       if (transitionTimer) clearInterval(transitionTimer);
       isPlaying = true;
+      viewer.animationName = 'Explode_Assembly';
       viewer.play();
       playText.innerText = 'Pause';
       playBtn.classList.add('active');
