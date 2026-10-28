@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>AeroCore AR - Image Tracking Scanner</title>
+  
+  <!-- A-Frame and MindAR for Image Tracking -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    :root {
+      --glass-bg: rgba(15, 23, 42, 0.82);
+      --glass-border: rgba(255, 255, 255, 0.16);
+      --neon-cyan: #38bdf8;
+      --neon-blue: #00f0ff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+
+    /* Fixed UI Layer */
+    .ar-ui-layer {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom)) 16px;
+    }
+
+    /* Top Bar */
+    .ar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      pointer-events: auto;
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: 20px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      color: #94a3b8;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 10px #ef4444;
+      transition: all 0.3s ease;
+    }
+
+    .status-dot.active {
+      background: #10b981;
+      box-shadow: 0 0 12px #10b981;
+    }
+
+    /* Scanning Reticle Frame */
+    .scan-reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 260px;
+      height: 260px;
+      border: 2px dashed rgba(56, 189, 248, 0.4);
+      border-radius: 24px;
+      pointer-events: none;
+      transition: all 0.4s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .scan-reticle.locked {
+      border-color: #10b981;
+      border-style: solid;
+      transform: translate(-50%, -50%) scale(1.08);
+      opacity: 0.15;
+    }
+
+    .scan-prompt {
+      position: absolute;
+      bottom: -36px;
+      color: var(--neon-cyan);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+      transition: opacity 0.3s;
+    }
+
+    /* Bottom Control Bar */
+    .ar-bottom-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      pointer-events: auto;
+    }
+
+    .detected-title {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 6px 18px;
+      border-radius: 20px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      transition: all 0.3s ease;
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    .detected-title.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .control-row {
+      display: flex;
+      gap: 8px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 6px 12px;
+      border-radius: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    }
+
+    .ar-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #f1f5f9;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .ar-btn:active, .ar-btn.active {
+      background: #38bdf8;
+      color: #09090b;
+      box-shadow: 0 0 14px #38bdf8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- MindAR Scene with Multi-Target Tracking -->
+  <a-scene
+    mindar-image="imageTargetSrc: assets/targets.mind; autoStart: true; maxTrack: 1; filterMinCF: 0.0001; filterBeta: 0.001;"
+    color-space="sRGB"
+    renderer="colorManagement: true, physicallyCorrectLights: true"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+    
+    <a-assets>
+      <a-asset-item id="jetModel" src="assets/jet_engine.glb"></a-asset-item>
+      <a-asset-item id="motorModel" src="assets/robot_motor.glb"></a-asset-item>
+      <a-asset-item id="radialModel" src="assets/cylinder_engine.glb"></a-asset-item>
+    </a-assets>
+
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+    <!-- Lighting -->
+    <a-entity light="type: ambient; color: #ffffff; intensity: 1.5;"></a-entity>
+    <a-entity light="type: directional; color: #ffffff; intensity: 2.0; position: 1 3 2;"></a-entity>
+
+    <!-- Target 0: Turbofan Jet Engine -->
+    <a-entity mindar-image-target="targetIndex: 0" id="target-jet">
+      <!-- Container that performs the surface pop-up rise animation -->
+      <a-entity id="rise-container-0" position="0 0 0" scale="0.001 0.001 0.001">
+        <a-gltf-model
+          id="model-jet"
+          src="#jetModel"
+          rotation="90 0 0"
+          position="0 0 0"
+          scale="0.22 0.22 0.22">
+        </a-gltf-model>
+      </a-entity>
+    </a-entity>
+
+    <!-- Target 1: Festo Servo Drive Motor -->
+    <a-entity mindar-image-target="targetIndex: 1" id="target-motor">
+      <a-entity id="rise-container-1" position="0 0 0" scale="0.001 0.001 0.001">
+        <a-gltf-model
+          id="model-motor"
+          src="#motorModel"
+          rotation="90 0 0"
+          position="0 0 0"
+          scale="0.18 0.18 0.18">
+        </a-gltf-model>
+      </a-entity>
+    </a-entity>
+
+    <!-- Target 2: Gnome Omega 7-Cyl Radial Propeller Engine -->
+    <a-entity mindar-image-target="targetIndex: 2" id="target-radial">
+      <a-entity id="rise-container-2" position="0 0 0" scale="0.001 0.001 0.001">
+        <a-gltf-model
+          id="model-radial"
+          src="#radialModel"
+          rotation="90 0 0"
+          position="0 0 0"
+          scale="0.16 0.16 0.16">
+        </a-gltf-model>
+      </a-entity>
+    </a-entity>
+
+  </a-scene>
+
+  <!-- AR Glass UI Overlay -->
+  <div class="ar-ui-layer">
+    <!-- Header -->
+    <div class="ar-header">
+      <a href="index.html" class="back-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        <span>Viewer</span>
+      </a>
+
+      <div class="status-badge">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Scanning Target</span>
+      </div>
+    </div>
+
+    <!-- Center Scanning Target Frame -->
+    <div class="scan-reticle" id="reticle">
+      <div class="scan-prompt" id="scan-prompt">Point camera at photo</div>
+    </div>
+
+    <!-- Bottom Controls -->
+    <div class="ar-bottom-controls">
+      <div class="detected-title" id="detected-title">Target Detected</div>
+
+      <div class="control-row">
+        <button class="ar-btn active" id="btn-ar-assemble" onclick="handleAssemble()">
+          <span>Assemble</span>
+        </button>
+
+        <button class="ar-btn" id="btn-ar-explode" onclick="handleExplode()">
+          <span>Explode</span>
+        </button>
+
+        <button class="ar-btn" id="btn-ar-spin" onclick="handleSpin()">
+          <span>Spin</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const targets = [
+      { name: "AeroCore Turbofan", containerId: "rise-container-0", targetId: "target-jet", modelId: "model-jet", targetElevation: 0.15 },
+      { name: "Festo Servo Motor", containerId: "rise-container-1", targetId: "target-motor", modelId: "model-motor", targetElevation: 0.12 },
+      { name: "Gnome 7-Cyl Rotary", containerId: "rise-container-2", targetId: "target-radial", modelId: "model-radial", targetElevation: 0.14 }
+    ];
+
+    let currentTargetIdx = -1;
+    let isExploded = false;
+    let isSpinning = false;
+    let spinSpeed = 0.08;
+
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const reticle = document.getElementById('reticle');
+    const scanPrompt = document.getElementById('scan-prompt');
+    const detectedTitle = document.getElementById('detected-title');
+
+    // Register Target Found / Lost Events for all 3 targets
+    targets.forEach((t, idx) => {
+      const el = document.getElementById(t.targetId);
+
+      el.addEventListener('targetFound', () => {
+        currentTargetIdx = idx;
+        statusDot.classList.add('active');
+        statusText.innerText = "Tracking Locked";
+        reticle.classList.add('locked');
+        scanPrompt.style.opacity = '0';
+        detectedTitle.innerText = t.name;
+        detectedTitle.classList.add('visible');
+
+        // Trigger Surface Pop-up / Rise Animation!
+        animateSurfaceRise(t.containerId, t.targetElevation);
+      });
+
+      el.addEventListener('targetLost', () => {
+        if (currentTargetIdx === idx) {
+          statusDot.classList.remove('active');
+          statusText.innerText = "Scanning Target";
+          reticle.classList.remove('locked');
+          scanPrompt.style.opacity = '1';
+          detectedTitle.classList.remove('visible');
+        }
+      });
+    });
+
+    /**
+     * Smooth Surface Pop-up Rise Animation
+     * Rises from flush surface Z=0 up to targetElevation with spring ease
+     */
+    function animateSurfaceRise(containerId, finalZ) {
+      const el = document.getElementById(containerId);
+      if (!el) return;
+
+      let startTime = performance.now();
+      const duration = 1200; // ms
+
+      function step(now) {
+        const elapsed = now - startTime;
+        const progress = Math.min(1, elapsed / duration);
+
+        // Smooth cubic ease out with slight spring overshoot
+        // easeOutBack: c1 = 1.70158
+        const c1 = 1.2;
+        const c3 = c1 + 1;
+        const ease = 1 + c3 * Math.pow(progress - 1, 3) + c1 * Math.pow(progress - 1, 2);
+
+        const currentZ = finalZ * ease;
+        const currentScale = Math.min(1.0, ease);
+
+        el.setAttribute('position', `0 0 ${currentZ.toFixed(4)}`);
+        el.setAttribute('scale', `${currentScale.toFixed(4)} ${currentScale.toFixed(4)} ${currentScale.toFixed(4)}`);
+
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    // Interactive Button Handlers
+    function handleAssemble() {
+      isExploded = false;
+      document.getElementById('btn-ar-assemble').classList.add('active');
+      document.getElementById('btn-ar-explode').classList.remove('active');
+      
+      // Animate model back into compact assembly
+      applyAssemblyState(0);
+    }
+
+    function handleExplode() {
+      isExploded = true;
+      document.getElementById('btn-ar-explode').classList.add('active');
+      document.getElementById('btn-ar-assemble').classList.remove('active');
+
+      // Animate model into exploded state
+      applyAssemblyState(1);
+    }
+
+    function handleSpin() {
+      isSpinning = !isSpinning;
+      const btn = document.getElementById('btn-ar-spin');
+      btn.classList.toggle('active', isSpinning);
+    }
+
+    // Continuous tick loop for rotation
+    AFRAME.registerComponent('ar-rotation-controller', {
+      tick: function (t, dt) {
+        if (isSpinning && currentTargetIdx >= 0) {
+          const tData = targets[currentTargetIdx];
+          const m = document.getElementById(tData.modelId);
+          if (m) {
+            const rot = m.getAttribute('rotation') || { x: 90, y: 0, z: 0 };
+            rot.y = (rot.y + (dt * 0.12)) % 360;
+            m.setAttribute('rotation', rot);
+          }
+        }
+      }
+    });
+
+    // Add component to scene
+    document.querySelector('a-scene').setAttribute('ar-rotation-controller', '');
+
+    function applyAssemblyState(state) {
+      if (currentTargetIdx < 0) return;
+      const t = targets[currentTargetIdx];
+      const modelEl = document.getElementById(t.modelId);
+      if (!modelEl) return;
+
+      const gltf = modelEl.getObject3D('mesh');
+      if (!gltf) return;
+
+      // Smoothly expand or retract parts away from origin
+      let startTime = performance.now();
+      const dur = 600;
+
+      function stepAnim(now) {
+        const elapsed = now - startTime;
+        const p = Math.min(1, elapsed / dur);
+        const factor = state === 1 ? p : (1 - p);
+
+        gltf.traverse((child) => {
+          if (child.isMesh && child.name && !child.name.includes("Stand") && !child.name.includes("mount")) {
+            if (!child.userData.origPosition) {
+              child.userData.origPosition = child.position.clone();
+            }
+            const orig = child.userData.origPosition;
+            if (orig.length() > 0.001) {
+              const dir = orig.clone().normalize();
+              child.position.copy(orig).addScaledVector(dir, factor * 0.18);
+            }
+          }
+        });
+
+        if (p < 1) requestAnimationFrame(stepAnim);
+      }
+      requestAnimationFrame(stepAnim);
+    }
+  </script>
+</body>
+</html>
