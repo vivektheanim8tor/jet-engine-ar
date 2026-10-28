@@ -27,11 +27,18 @@
       -webkit-user-select: none;
     }
 
+    /* CRITICAL: html and body must be transparent so the webcam video feed underneath is visible! */
     body, html {
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #000;
+      background: transparent !important;
+      background-color: transparent !important;
+    }
+
+    a-scene, .a-canvas {
+      background: transparent !important;
+      background-color: transparent !important;
     }
 
     /* Fixed UI Layer */
@@ -416,6 +423,21 @@
 
     // Continuous tick loop for rotation
     AFRAME.registerComponent('ar-rotation-controller', {
+      init: function () {
+        // Ensure video element plays inline on iOS Safari / Chrome
+        const sceneEl = this.el;
+        sceneEl.addEventListener('arReady', () => {
+          const video = document.querySelector('video');
+          if (video) {
+            video.setAttribute('playsinline', '');
+            video.setAttribute('webkit-playsinline', '');
+            video.muted = true;
+            if (video.paused) {
+              video.play().catch(e => console.log('Video play error:', e));
+            }
+          }
+        });
+      },
       tick: function (t, dt) {
         if (isSpinning && currentTargetIdx >= 0) {
           const tData = targets[currentTargetIdx];
