@@ -252,7 +252,7 @@
   <a-scene
     mindar-image="imageTargetSrc: assets/targets.mind; autoStart: true; maxTrack: 1; filterMinCF: 0.0001; filterBeta: 0.001;"
     color-space="sRGB"
-    renderer="colorManagement: true, physicallyCorrectLights: true"
+    renderer="colorManagement: true; physicallyCorrectLights: true; alpha: true;"
     vr-mode-ui="enabled: false"
     device-orientation-permission-ui="enabled: false">
     
@@ -264,15 +264,16 @@
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <!-- Lighting -->
-    <a-entity light="type: ambient; color: #ffffff; intensity: 2.2;"></a-entity>
-    <a-entity light="type: directional; color: #ffffff; intensity: 3.0; position: 2 4 3;"></a-entity>
-    <a-entity light="type: directional; color: #93c5fd; intensity: 1.5; position: -2 -1 2;"></a-entity>
+    <!-- Studio Lighting Setup -->
+    <a-entity light="type: ambient; color: #ffffff; intensity: 1.8;"></a-entity>
+    <a-entity light="type: directional; color: #ffffff; intensity: 2.5; position: 2 4 3;"></a-entity>
+    <a-entity light="type: directional; color: #bae6fd; intensity: 1.5; position: -2 2 1;"></a-entity>
+    <a-entity light="type: directional; color: #e2e8f0; intensity: 1.2; position: 0 -3 2;"></a-entity>
 
     <!-- Target 0: Turbofan Jet Engine -->
     <a-entity mindar-image-target="targetIndex: 0" id="target-jet">
-      <!-- Container that performs the surface pop-up rise animation -->
-      <a-entity id="rise-container-0" position="0 0 0" scale="0.001 0.001 0.001">
+      <!-- Container that moves along Z (rising through card plane at 100% final scale) -->
+      <a-entity id="rise-container-0" position="0 0 0" scale="1 1 1">
         <a-gltf-model
           id="model-jet"
           src="#jetModel"
@@ -283,9 +284,9 @@
       </a-entity>
     </a-entity>
 
-    <!-- Target 1: Festo Servo Drive Motor (scaled up to match target card size) -->
+    <!-- Target 1: Festo Servo Drive Motor -->
     <a-entity mindar-image-target="targetIndex: 1" id="target-motor">
-      <a-entity id="rise-container-1" position="0 0 0" scale="0.001 0.001 0.001">
+      <a-entity id="rise-container-1" position="0 0 0" scale="1 1 1">
         <a-gltf-model
           id="model-motor"
           src="#motorModel"
@@ -298,7 +299,7 @@
 
     <!-- Target 2: Gnome Omega 7-Cyl Radial Propeller Engine -->
     <a-entity mindar-image-target="targetIndex: 2" id="target-radial">
-      <a-entity id="rise-container-2" position="0 0 0" scale="0.001 0.001 0.001">
+      <a-entity id="rise-container-2" position="0 0 0" scale="1 1 1">
         <a-gltf-model
           id="model-radial"
           src="#radialModel"
@@ -352,16 +353,46 @@
   </div>
 
   <script>
+    // Exact targets configuration with submerse depth and resting elevation
     const targets = [
-      { name: "AeroCore Turbofan", containerId: "rise-container-0", targetId: "target-jet", modelId: "model-jet", targetElevation: 0.25 },
-      { name: "Festo Servo Motor", containerId: "rise-container-1", targetId: "target-motor", modelId: "model-motor", targetElevation: 0.25 },
-      { name: "Gnome 7-Cyl Rotary", containerId: "rise-container-2", targetId: "target-radial", modelId: "model-radial", targetElevation: 0.25 }
+      {
+        name: "AeroCore Turbofan",
+        containerId: "rise-container-0",
+        targetId: "target-jet",
+        modelId: "model-jet",
+        submerseZ: -0.65,      // Submerged depth below plane
+        finalZ: 0.12,          // Elevation above card when fully emerged
+        explodeDuration: 4.0,  // Animation clip duration
+        explodeTargetTime: 2.16
+      },
+      {
+        name: "Festo Servo Motor",
+        containerId: "rise-container-1",
+        targetId: "target-motor",
+        modelId: "model-motor",
+        submerseZ: -0.45,
+        finalZ: 0.10,
+        explodeDuration: 4.0,
+        explodeTargetTime: 2.16
+      },
+      {
+        name: "Gnome 7-Cyl Rotary",
+        containerId: "rise-container-2",
+        targetId: "target-radial",
+        modelId: "model-radial",
+        submerseZ: -0.55,
+        finalZ: 0.12,
+        explodeDuration: 4.0,
+        explodeTargetTime: (70.0 / 120.0) * 4.0 // 2.33s for 100% radial explosion
+      }
     ];
 
     let currentTargetIdx = -1;
     let isExploded = false;
     let isSpinning = false;
-    let spinSpeed = 0.08;
+    let mixers = {};
+    let actions = {};
+    let clipPlanes = {};
 
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
@@ -369,10 +400,49 @@
     const scanPrompt = document.getElementById('scan-prompt');
     const detectedTitle = document.getElementById('detected-title');
 
-    // Continuous tick loop for rotation
-    AFRAME.registerComponent('ar-rotation-controller', {
+    // MindAR & Three.js Studio Material & Clipping Setup Component
+    AFRAME.registerComponent('ar-master-controller', {
       init: function () {
-        // Enforce visible video element and correct layer stacking
+        const sceneEl = this.el;
+        const renderer = sceneEl.renderer;
+        const threeScene = sceneEl.object3D;
+
+        // 1. Enable Hardware Local Clipping Plane
+        renderer.localClippingEnabled = true;
+
+        // 2. Set Professional Color Management & ACES Filmic Tone Mapping (matches Model Viewer)
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.35;
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        // 3. Generate Studio HDRI Environment Map for realistic PBR metallic reflections
+        try {
+          const pmremGenerator = new THREE.PMREMGenerator(renderer);
+          pmremGenerator.compileEquirectangularShader();
+
+          const envScene = new THREE.Scene();
+          const lightTop = new THREE.DirectionalLight(0xffffff, 2.5);
+          lightTop.position.set(0, 5, 2);
+          envScene.add(lightTop);
+
+          const lightFront = new THREE.DirectionalLight(0xffffff, 2.0);
+          lightFront.position.set(0, 0, 5);
+          envScene.add(lightFront);
+
+          const lightRim = new THREE.DirectionalLight(0x7dd3fc, 1.8);
+          lightRim.position.set(-4, -2, -3);
+          envScene.add(lightRim);
+
+          const hemi = new THREE.HemisphereLight(0xffffff, 0x334155, 2.0);
+          envScene.add(hemi);
+
+          const envRenderTarget = pmremGenerator.fromScene(envScene, 0.04);
+          threeScene.environment = envRenderTarget.texture;
+        } catch (e) {
+          console.warn("HDR PMREM Environment Map creation skipped:", e);
+        }
+
+        // 4. Enforce visible video feed element
         const fixVideo = () => {
           const video = document.querySelector('video');
           if (video) {
@@ -395,26 +465,116 @@
           }
         };
 
-        const sceneEl = this.el;
         sceneEl.addEventListener('arReady', fixVideo);
-        // Also run periodic check to ensure video layer doesn't get suppressed
         setInterval(fixVideo, 500);
+
+        // 5. Initialize Models: Apply Local Surface Clipping Plane & Setup AnimationMixers
+        targets.forEach((t, idx) => {
+          const modelEl = document.getElementById(t.modelId);
+          const targetEl = document.getElementById(t.targetId);
+          const containerEl = document.getElementById(t.containerId);
+
+          // Initially submerge container below card surface so it emerges from below
+          containerEl.setAttribute('position', `0 0 ${t.submerseZ}`);
+          containerEl.setAttribute('scale', '1 1 1');
+
+          // Local clipping plane at Z=0 of target card (normal points +Z outwards from card)
+          // Any geometry where (normal . P + constant) >= 0 is RENDERED (above card).
+          // Geometry below card plane (Z < 0) is CUT OFF / SUBTRACTED cleanly.
+          const localPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+          const worldPlane = new THREE.Plane();
+          clipPlanes[t.modelId] = {
+            targetObj: targetEl.object3D,
+            localPlane: localPlane,
+            worldPlane: worldPlane,
+            normalMatrix: new THREE.Matrix3()
+          };
+
+          modelEl.addEventListener('model-loaded', () => {
+            const mesh = modelEl.getObject3D('mesh');
+            if (!mesh) return;
+
+            // Apply clipping plane and enhance material PBR fidelity
+            mesh.traverse(child => {
+              if (child.isMesh && child.material) {
+                child.material.clippingPlanes = [worldPlane];
+                child.material.clipShadows = true;
+                child.material.needsUpdate = true;
+
+                // Ensure textures render with proper color space
+                if (child.material.map) {
+                  child.material.map.colorSpace = THREE.SRGBColorSpace;
+                  child.material.map.needsUpdate = true;
+                }
+                if (child.material.roughnessMap) {
+                  child.material.roughnessMap.colorSpace = THREE.NoColorSpace;
+                }
+                if (child.material.metalnessMap) {
+                  child.material.metalnessMap.colorSpace = THREE.NoColorSpace;
+                }
+              }
+            });
+
+            // Initialize Three.js AnimationMixer with GLB embedded tracks
+            if (mesh.animations && mesh.animations.length > 0) {
+              const mixer = new THREE.AnimationMixer(mesh);
+              mixers[t.modelId] = mixer;
+              actions[t.modelId] = {};
+
+              mesh.animations.forEach(clip => {
+                const action = mixer.clipAction(clip);
+                action.play();
+                action.paused = true; // Controlled by seek time
+                actions[t.modelId][clip.name] = action;
+              });
+
+              // Initial frame: Assembled at t=0
+              seekAnimation(t.modelId, 'Explode_Assembly', 0);
+            }
+          });
+        });
       },
+
       tick: function (t, dt) {
-        if (isSpinning && currentTargetIdx >= 0) {
-          const tData = targets[currentTargetIdx];
-          const m = document.getElementById(tData.modelId);
-          if (m) {
-            const rot = m.getAttribute('rotation') || { x: 90, y: 0, z: 0 };
-            rot.y = (rot.y + (dt * 0.12)) % 360;
-            m.setAttribute('rotation', rot);
+        const delta = dt * 0.001; // seconds
+
+        // Update clipping planes to follow active tracking targets in world coordinates
+        Object.keys(clipPlanes).forEach(id => {
+          const cp = clipPlanes[id];
+          if (cp.targetObj && cp.targetObj.matrixWorld.determinant() !== 0) {
+            cp.normalMatrix.getNormalMatrix(cp.targetObj.matrixWorld);
+            cp.worldPlane.copy(cp.localPlane).applyMatrix4(cp.targetObj.matrixWorld, cp.normalMatrix);
+          }
+        });
+
+        // Update AnimationMixer ticks
+        if (currentTargetIdx >= 0) {
+          const currentTarget = targets[currentTargetIdx];
+          const mixer = mixers[currentTarget.modelId];
+          const actObj = actions[currentTarget.modelId];
+
+          if (isSpinning && actObj) {
+            // Spin animation
+            if (currentTarget.modelId === 'model-radial' && actObj['Blade_Rotation']) {
+              // Radial engine has dedicated propeller rotation track
+              const bladeAct = actObj['Blade_Rotation'];
+              bladeAct.paused = false;
+              mixer.update(delta * 1.5);
+            } else {
+              // Continuous yaw rotation for Turbofan & Motor
+              const mEl = document.getElementById(currentTarget.modelId);
+              if (mEl) {
+                const rot = mEl.getAttribute('rotation') || { x: 90, y: 0, z: 0 };
+                rot.y = (rot.y + (dt * 0.12)) % 360;
+                mEl.setAttribute('rotation', rot);
+              }
+            }
           }
         }
       }
     });
 
-    // Add component to scene
-    document.querySelector('a-scene').setAttribute('ar-rotation-controller', '');
+    document.querySelector('a-scene').setAttribute('ar-master-controller', '');
 
     // Register Target Found / Lost Events for all 3 targets
     targets.forEach((t, idx) => {
@@ -430,8 +590,14 @@
         detectedTitle.innerText = t.name;
         detectedTitle.classList.add('visible');
 
-        // Trigger Surface Pop-up / Rise Animation!
-        animateSurfaceRise(t.containerId, t.targetElevation);
+        // Reset Assembly state to Assembled
+        isExploded = false;
+        document.getElementById('btn-ar-assemble').classList.add('active');
+        document.getElementById('btn-ar-explode').classList.remove('active');
+        seekAnimation(t.modelId, 'Explode_Assembly', 0);
+
+        // Trigger Surface Pop-up: Model emerges upwards through the card surface with physical clipping!
+        animateEmergenceFromSurface(t.containerId, t.submerseZ, t.finalZ);
       });
 
       el.addEventListener('targetLost', () => {
@@ -446,30 +612,28 @@
     });
 
     /**
-     * Smooth Surface Pop-up Rise Animation
-     * Rises from flush surface Z=0 up to targetElevation with spring ease
+     * Surface Emergence Animation
+     * Rises from submerged depth Z = submerseZ up through card plane to Z = finalZ.
+     * The scale remains locked at 1.0 (final size), and parts below Z=0 are clipped by the card surface!
      */
-    function animateSurfaceRise(containerId, finalZ) {
+    function animateEmergenceFromSurface(containerId, startZ, endZ) {
       const el = document.getElementById(containerId);
       if (!el) return;
 
       let startTime = performance.now();
-      const duration = 1200; // ms
+      const duration = 1400; // ms
 
       function step(now) {
         const elapsed = now - startTime;
         const progress = Math.min(1, elapsed / duration);
 
-        // Smooth cubic ease out with slight spring overshoot
-        const c1 = 1.2;
+        // Smooth cubic ease out with slight overshoot
+        const c1 = 1.0;
         const c3 = c1 + 1;
         const ease = 1 + c3 * Math.pow(progress - 1, 3) + c1 * Math.pow(progress - 1, 2);
 
-        const currentZ = finalZ * ease;
-        const currentScale = Math.min(1.0, ease);
-
+        const currentZ = startZ + (endZ - startZ) * ease;
         el.setAttribute('position', `0 0 ${currentZ.toFixed(4)}`);
-        el.setAttribute('scale', `${currentScale.toFixed(4)} ${currentScale.toFixed(4)} ${currentScale.toFixed(4)}`);
 
         if (progress < 1) {
           requestAnimationFrame(step);
@@ -478,61 +642,77 @@
       requestAnimationFrame(step);
     }
 
-    // Interactive Button Handlers
+    // Seek GLB Animation Action by normalized progress (0.0 = assembled, 1.0 = exploded)
+    function seekAnimation(modelId, clipName, progress) {
+      const actObj = actions[modelId];
+      if (!actObj || !actObj[clipName]) return;
+
+      const action = actObj[clipName];
+      const t = targets.find(item => item.modelId === modelId);
+      if (!t) return;
+
+      const targetTime = progress * t.explodeTargetTime;
+      action.paused = true;
+      action.time = Math.max(0, Math.min(action.getClip().duration, targetTime));
+      
+      const mixer = mixers[modelId];
+      if (mixer) mixer.update(0);
+    }
+
+    // Smooth Assembly / Explosion Transition using true GLB keyframe tracks
+    function animateExplosionState(modelId, fromProgress, toProgress) {
+      let startTime = performance.now();
+      const duration = 750; // ms
+
+      function step(now) {
+        const elapsed = now - startTime;
+        const p = Math.min(1, elapsed / duration);
+        const ease = 0.5 - Math.cos(p * Math.PI) / 2; // smooth cosine ease
+        const currentProgress = fromProgress + (toProgress - fromProgress) * ease;
+
+        seekAnimation(modelId, 'Explode_Assembly', currentProgress);
+
+        if (p < 1) {
+          requestAnimationFrame(step);
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    // Button Handlers
     function handleAssemble() {
+      if (currentTargetIdx < 0) return;
       isExploded = false;
       document.getElementById('btn-ar-assemble').classList.add('active');
       document.getElementById('btn-ar-explode').classList.remove('active');
-      applyAssemblyState(0);
+
+      const t = targets[currentTargetIdx];
+      animateExplosionState(t.modelId, 1.0, 0.0);
     }
 
     function handleExplode() {
+      if (currentTargetIdx < 0) return;
       isExploded = true;
       document.getElementById('btn-ar-explode').classList.add('active');
       document.getElementById('btn-ar-assemble').classList.remove('active');
-      applyAssemblyState(1);
+
+      const t = targets[currentTargetIdx];
+      animateExplosionState(t.modelId, 0.0, 1.0);
     }
 
     function handleSpin() {
+      if (currentTargetIdx < 0) return;
       isSpinning = !isSpinning;
       const btn = document.getElementById('btn-ar-spin');
       btn.classList.toggle('active', isSpinning);
-    }
 
-    function applyAssemblyState(state) {
-      if (currentTargetIdx < 0) return;
       const t = targets[currentTargetIdx];
-      const modelEl = document.getElementById(t.modelId);
-      if (!modelEl) return;
-
-      const gltf = modelEl.getObject3D('mesh');
-      if (!gltf) return;
-
-      // Smoothly expand or retract parts away from origin
-      let startTime = performance.now();
-      const dur = 600;
-
-      function stepAnim(now) {
-        const elapsed = now - startTime;
-        const p = Math.min(1, elapsed / dur);
-        const factor = state === 1 ? p : (1 - p);
-
-        gltf.traverse((child) => {
-          if (child.isMesh && child.name && !child.name.includes("Stand") && !child.name.includes("mount")) {
-            if (!child.userData.origPosition) {
-              child.userData.origPosition = child.position.clone();
-            }
-            const orig = child.userData.origPosition;
-            if (orig.length() > 0.001) {
-              const dir = orig.clone().normalize();
-              child.position.copy(orig).addScaledVector(dir, factor * 0.18);
-            }
-          }
-        });
-
-        if (p < 1) requestAnimationFrame(stepAnim);
+      if (!isSpinning && t.modelId === 'model-radial') {
+        const actObj = actions[t.modelId];
+        if (actObj && actObj['Blade_Rotation']) {
+          actObj['Blade_Rotation'].paused = true;
+        }
       }
-      requestAnimationFrame(stepAnim);
     }
   </script>
 </body>
