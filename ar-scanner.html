@@ -11,8 +11,8 @@
 
   <style>
     :root {
-      --glass-bg: rgba(15, 23, 42, 0.82);
-      --glass-border: rgba(255, 255, 255, 0.16);
+      --glass-bg: rgba(15, 23, 42, 0.85);
+      --glass-border: rgba(255, 255, 255, 0.18);
       --neon-cyan: #38bdf8;
       --neon-blue: #00f0ff;
     }
@@ -96,7 +96,13 @@
       pointer-events: auto;
     }
 
-    .back-btn {
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .glass-btn {
       display: flex;
       align-items: center;
       gap: 6px;
@@ -111,6 +117,12 @@
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .glass-btn:active {
+      transform: scale(0.96);
     }
 
     .status-badge {
@@ -264,15 +276,14 @@
 
     <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-    <!-- Studio Lighting Setup -->
-    <a-entity light="type: ambient; color: #ffffff; intensity: 1.8;"></a-entity>
-    <a-entity light="type: directional; color: #ffffff; intensity: 2.5; position: 2 4 3;"></a-entity>
-    <a-entity light="type: directional; color: #bae6fd; intensity: 1.5; position: -2 2 1;"></a-entity>
-    <a-entity light="type: directional; color: #e2e8f0; intensity: 1.2; position: 0 -3 2;"></a-entity>
+    <!-- Balanced Photorealistic Studio Lights -->
+    <a-entity light="type: ambient; color: #ffffff; intensity: 1.4;"></a-entity>
+    <a-entity light="type: directional; color: #ffffff; intensity: 2.2; position: 2 4 3;"></a-entity>
+    <a-entity light="type: directional; color: #bae6fd; intensity: 1.6; position: -2 2 1;"></a-entity>
+    <a-entity light="type: directional; color: #f1f5f9; intensity: 1.2; position: 0 -3 2;"></a-entity>
 
     <!-- Target 0: Turbofan Jet Engine -->
     <a-entity mindar-image-target="targetIndex: 0" id="target-jet">
-      <!-- Container that moves along Z (rising through card plane at 100% final scale) -->
       <a-entity id="rise-container-0" position="0 0 0" scale="1 1 1">
         <a-gltf-model
           id="model-jet"
@@ -316,10 +327,16 @@
   <div class="ar-ui-layer">
     <!-- Header -->
     <div class="ar-header">
-      <a href="index.html" class="back-btn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-        <span>Viewer</span>
-      </a>
+      <div class="header-actions">
+        <a href="index.html" class="glass-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <span>Viewer</span>
+        </a>
+        <button class="glass-btn" onclick="resetARScan()" title="Reset and re-run entrance animation">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          <span>Re-run</span>
+        </button>
+      </div>
 
       <div class="status-badge">
         <div class="status-dot" id="status-dot"></div>
@@ -353,17 +370,19 @@
   </div>
 
   <script>
-    // Exact targets configuration with submerse depth and resting elevation
+    // Targets configuration
     const targets = [
       {
         name: "AeroCore Turbofan",
         containerId: "rise-container-0",
         targetId: "target-jet",
         modelId: "model-jet",
-        submerseZ: -0.65,      // Submerged depth below plane
-        finalZ: 0.12,          // Elevation above card when fully emerged
-        explodeDuration: 4.0,  // Animation clip duration
-        explodeTargetTime: 2.16
+        submerseZ: -0.65,      // Submerged depth below card surface
+        finalZ: 0.12,          // Resting elevation above card
+        explodeDuration: 4.0,
+        explodeTargetTime: 2.16,
+        hasEmerged: false,     // Locks state once emerged so it never re-triggers or glitches
+        isEmerging: false
       },
       {
         name: "Festo Servo Motor",
@@ -373,7 +392,9 @@
         submerseZ: -0.45,
         finalZ: 0.10,
         explodeDuration: 4.0,
-        explodeTargetTime: 2.16
+        explodeTargetTime: 2.16,
+        hasEmerged: false,
+        isEmerging: false
       },
       {
         name: "Gnome 7-Cyl Rotary",
@@ -383,7 +404,9 @@
         submerseZ: -0.55,
         finalZ: 0.12,
         explodeDuration: 4.0,
-        explodeTargetTime: (70.0 / 120.0) * 4.0 // 2.33s for 100% radial explosion
+        explodeTargetTime: (70.0 / 120.0) * 4.0,
+        hasEmerged: false,
+        isEmerging: false
       }
     ];
 
@@ -400,7 +423,37 @@
     const scanPrompt = document.getElementById('scan-prompt');
     const detectedTitle = document.getElementById('detected-title');
 
-    // MindAR & Three.js Studio Material & Clipping Setup Component
+    // Setup High-Fidelity Studio Environment Map
+    function createStudioEnvironment(renderer, threeScene) {
+      // Create a smooth, bright equirectangular studio environment canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+
+      // Soft vertical studio gradient (sky to floor)
+      const grad = ctx.createLinearGradient(0, 0, 0, 256);
+      grad.addColorStop(0.0, '#ffffff'); // bright ceiling
+      grad.addColorStop(0.3, '#f1f5f9'); // soft white upper
+      grad.addColorStop(0.5, '#e2e8f0'); // neutral horizon
+      grad.addColorStop(0.7, '#cbd5e1'); // soft floor
+      grad.addColorStop(1.0, '#94a3b8'); // base
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 512, 256);
+
+      // Studio softboxes / light panels for realistic metallic highlights
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.fillRect(60, 30, 90, 110);
+      ctx.fillRect(360, 30, 90, 110);
+      ctx.fillRect(210, 15, 90, 80);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.mapping = THREE.EquirectangularReflectionMapping;
+      texture.colorSpace = THREE.SRGBColorSpace;
+
+      threeScene.environment = texture;
+    }
+
     AFRAME.registerComponent('ar-master-controller', {
       init: function () {
         const sceneEl = this.el;
@@ -410,39 +463,15 @@
         // 1. Enable Hardware Local Clipping Plane
         renderer.localClippingEnabled = true;
 
-        // 2. Set Professional Color Management & ACES Filmic Tone Mapping (matches Model Viewer)
+        // 2. Set ACES Filmic Tone Mapping and Exposure
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
         renderer.toneMappingExposure = 1.35;
         renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-        // 3. Generate Studio HDRI Environment Map for realistic PBR metallic reflections
-        try {
-          const pmremGenerator = new THREE.PMREMGenerator(renderer);
-          pmremGenerator.compileEquirectangularShader();
+        // 3. Generate Studio Reflection Environment Texture
+        createStudioEnvironment(renderer, threeScene);
 
-          const envScene = new THREE.Scene();
-          const lightTop = new THREE.DirectionalLight(0xffffff, 2.5);
-          lightTop.position.set(0, 5, 2);
-          envScene.add(lightTop);
-
-          const lightFront = new THREE.DirectionalLight(0xffffff, 2.0);
-          lightFront.position.set(0, 0, 5);
-          envScene.add(lightFront);
-
-          const lightRim = new THREE.DirectionalLight(0x7dd3fc, 1.8);
-          lightRim.position.set(-4, -2, -3);
-          envScene.add(lightRim);
-
-          const hemi = new THREE.HemisphereLight(0xffffff, 0x334155, 2.0);
-          envScene.add(hemi);
-
-          const envRenderTarget = pmremGenerator.fromScene(envScene, 0.04);
-          threeScene.environment = envRenderTarget.texture;
-        } catch (e) {
-          console.warn("HDR PMREM Environment Map creation skipped:", e);
-        }
-
-        // 4. Enforce visible video feed element
+        // 4. Ensure camera video feed plays inline and is visible
         const fixVideo = () => {
           const video = document.querySelector('video');
           if (video) {
@@ -468,50 +497,41 @@
         sceneEl.addEventListener('arReady', fixVideo);
         setInterval(fixVideo, 500);
 
-        // 5. Initialize Models: Apply Local Surface Clipping Plane & Setup AnimationMixers
+        // 5. Initialize Models & Clipping Setup
         targets.forEach((t, idx) => {
           const modelEl = document.getElementById(t.modelId);
           const targetEl = document.getElementById(t.targetId);
           const containerEl = document.getElementById(t.containerId);
 
-          // Initially submerge container below card surface so it emerges from below
+          // Submerge model below card surface initially
           containerEl.setAttribute('position', `0 0 ${t.submerseZ}`);
           containerEl.setAttribute('scale', '1 1 1');
 
-          // Local clipping plane at Z=0 of target card (normal points +Z outwards from card)
-          // Any geometry where (normal . P + constant) >= 0 is RENDERED (above card).
-          // Geometry below card plane (Z < 0) is CUT OFF / SUBTRACTED cleanly.
-          const localPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+          // Target card surface plane:
           const worldPlane = new THREE.Plane();
           clipPlanes[t.modelId] = {
             targetObj: targetEl.object3D,
-            localPlane: localPlane,
             worldPlane: worldPlane,
-            normalMatrix: new THREE.Matrix3()
+            active: true
           };
 
           modelEl.addEventListener('model-loaded', () => {
             const mesh = modelEl.getObject3D('mesh');
             if (!mesh) return;
 
-            // Apply clipping plane and enhance material PBR fidelity
+            // Apply double-side and attach active clipping plane
             mesh.traverse(child => {
               if (child.isMesh && child.material) {
+                child.material.side = THREE.DoubleSide; // Render both sides cleanly when sliced
                 child.material.clippingPlanes = [worldPlane];
                 child.material.clipShadows = true;
-                child.material.needsUpdate = true;
 
-                // Ensure textures render with proper color space
+                // Ensure metalness and roughness textures are evaluated correctly
                 if (child.material.map) {
                   child.material.map.colorSpace = THREE.SRGBColorSpace;
-                  child.material.map.needsUpdate = true;
                 }
-                if (child.material.roughnessMap) {
-                  child.material.roughnessMap.colorSpace = THREE.NoColorSpace;
-                }
-                if (child.material.metalnessMap) {
-                  child.material.metalnessMap.colorSpace = THREE.NoColorSpace;
-                }
+                child.material.envMapIntensity = 1.25;
+                child.material.needsUpdate = true;
               }
             });
 
@@ -524,11 +544,10 @@
               mesh.animations.forEach(clip => {
                 const action = mixer.clipAction(clip);
                 action.play();
-                action.paused = true; // Controlled by seek time
+                action.paused = true;
                 actions[t.modelId][clip.name] = action;
               });
 
-              // Initial frame: Assembled at t=0
               seekAnimation(t.modelId, 'Explode_Assembly', 0);
             }
           });
@@ -538,12 +557,18 @@
       tick: function (t, dt) {
         const delta = dt * 0.001; // seconds
 
-        // Update clipping planes to follow active tracking targets in world coordinates
+        // Update clipping planes to follow active tracking targets in world space
         Object.keys(clipPlanes).forEach(id => {
           const cp = clipPlanes[id];
-          if (cp.targetObj && cp.targetObj.matrixWorld.determinant() !== 0) {
-            cp.normalMatrix.getNormalMatrix(cp.targetObj.matrixWorld);
-            cp.worldPlane.copy(cp.localPlane).applyMatrix4(cp.targetObj.matrixWorld, cp.normalMatrix);
+          if (cp.active && cp.targetObj && cp.targetObj.matrixWorld) {
+            // Check matrixWorld determinant: non-zero means target is actively tracked
+            const m = cp.targetObj.matrixWorld;
+            if (m.determinant() !== 0) {
+              // Target plane normal in local target space is (0, 0, 1) pointing out of card
+              const normal = new THREE.Vector3(0, 0, 1).transformDirection(m).normalize();
+              const pointOnPlane = new THREE.Vector3(0, 0, 0).applyMatrix4(m);
+              cp.worldPlane.setFromNormalAndCoplanarPoint(normal, pointOnPlane);
+            }
           }
         });
 
@@ -554,14 +579,11 @@
           const actObj = actions[currentTarget.modelId];
 
           if (isSpinning && actObj) {
-            // Spin animation
             if (currentTarget.modelId === 'model-radial' && actObj['Blade_Rotation']) {
-              // Radial engine has dedicated propeller rotation track
               const bladeAct = actObj['Blade_Rotation'];
               bladeAct.paused = false;
               mixer.update(delta * 1.5);
             } else {
-              // Continuous yaw rotation for Turbofan & Motor
               const mEl = document.getElementById(currentTarget.modelId);
               if (mEl) {
                 const rot = mEl.getAttribute('rotation') || { x: 90, y: 0, z: 0 };
@@ -576,7 +598,7 @@
 
     document.querySelector('a-scene').setAttribute('ar-master-controller', '');
 
-    // Register Target Found / Lost Events for all 3 targets
+    // Register Target Found / Lost Events
     targets.forEach((t, idx) => {
       const el = document.getElementById(t.targetId);
       if (!el) return;
@@ -590,14 +612,19 @@
         detectedTitle.innerText = t.name;
         detectedTitle.classList.add('visible');
 
-        // Reset Assembly state to Assembled
-        isExploded = false;
-        document.getElementById('btn-ar-assemble').classList.add('active');
-        document.getElementById('btn-ar-explode').classList.remove('active');
-        seekAnimation(t.modelId, 'Explode_Assembly', 0);
+        // ONE-SHOT BEHAVIOR:
+        // Only trigger the slow surface emergence ONCE per session.
+        // If already emerged, do NOT re-trigger or glitch when seen again!
+        if (!t.hasEmerged && !t.isEmerging) {
+          t.isEmerging = true;
+          isExploded = false;
+          document.getElementById('btn-ar-assemble').classList.add('active');
+          document.getElementById('btn-ar-explode').classList.remove('active');
+          seekAnimation(t.modelId, 'Explode_Assembly', 0);
 
-        // Trigger Surface Pop-up: Model emerges upwards through the card surface with physical clipping!
-        animateEmergenceFromSurface(t.containerId, t.submerseZ, t.finalZ);
+          // Emerges slowly from the card surface over 2.6 seconds
+          animateEmergenceFromSurface(t, t.containerId, t.submerseZ, t.finalZ, 2600);
+        }
       });
 
       el.addEventListener('targetLost', () => {
@@ -606,40 +633,108 @@
           statusText.innerText = "Scanning Target";
           reticle.classList.remove('locked');
           scanPrompt.style.opacity = '1';
-          detectedTitle.classList.remove('visible');
         }
       });
     });
 
     /**
-     * Surface Emergence Animation
-     * Rises from submerged depth Z = submerseZ up through card plane to Z = finalZ.
-     * The scale remains locked at 1.0 (final size), and parts below Z=0 are clipped by the card surface!
+     * Slow Surface Emergence Animation
+     * Rises from submerged depth up through the card plane with active physical clipping.
+     * When finished:
+     * - Remembers hasEmerged = true
+     * - Disables clipping planes completely so the model never interacts with clipping again!
      */
-    function animateEmergenceFromSurface(containerId, startZ, endZ) {
+    function animateEmergenceFromSurface(targetData, containerId, startZ, endZ, duration) {
       const el = document.getElementById(containerId);
       if (!el) return;
 
       let startTime = performance.now();
-      const duration = 1400; // ms
 
       function step(now) {
         const elapsed = now - startTime;
         const progress = Math.min(1, elapsed / duration);
 
-        // Smooth cubic ease out with slight overshoot
-        const c1 = 1.0;
-        const c3 = c1 + 1;
-        const ease = 1 + c3 * Math.pow(progress - 1, 3) + c1 * Math.pow(progress - 1, 2);
-
+        // Smooth sinusoidal ease out
+        const ease = Math.sin((progress * Math.PI) / 2);
         const currentZ = startZ + (endZ - startZ) * ease;
+
         el.setAttribute('position', `0 0 ${currentZ.toFixed(4)}`);
 
         if (progress < 1) {
           requestAnimationFrame(step);
+        } else {
+          // Model has fully emerged!
+          targetData.isEmerging = false;
+          targetData.hasEmerged = true;
+          el.setAttribute('position', `0 0 ${endZ.toFixed(4)}`);
+
+          // Completely detach and disable clipping plane on all materials
+          removeClippingPlanes(targetData.modelId);
         }
       }
       requestAnimationFrame(step);
+    }
+
+    // Disables clipping plane on model so it never clips or interacts with the surface again
+    function removeClippingPlanes(modelId) {
+      const cp = clipPlanes[modelId];
+      if (cp) cp.active = false;
+
+      const modelEl = document.getElementById(modelId);
+      if (!modelEl) return;
+      const mesh = modelEl.getObject3D('mesh');
+      if (!mesh) return;
+
+      mesh.traverse(child => {
+        if (child.isMesh && child.material) {
+          child.material.clippingPlanes = [];
+          child.material.needsUpdate = true;
+        }
+      });
+    }
+
+    // Re-attach clipping plane when resetting / re-running
+    function reattachClippingPlanes(modelId) {
+      const cp = clipPlanes[modelId];
+      if (cp) cp.active = true;
+
+      const modelEl = document.getElementById(modelId);
+      if (!modelEl) return;
+      const mesh = modelEl.getObject3D('mesh');
+      if (!mesh) return;
+
+      mesh.traverse(child => {
+        if (child.isMesh && child.material && cp) {
+          child.material.clippingPlanes = [cp.worldPlane];
+          child.material.needsUpdate = true;
+        }
+      });
+    }
+
+    // Reset & Re-run function
+    function resetARScan() {
+      targets.forEach(t => {
+        t.hasEmerged = false;
+        t.isEmerging = false;
+        const container = document.getElementById(t.containerId);
+        if (container) {
+          container.setAttribute('position', `0 0 ${t.submerseZ}`);
+        }
+        reattachClippingPlanes(t.modelId);
+        seekAnimation(t.modelId, 'Explode_Assembly', 0);
+      });
+
+      isExploded = false;
+      isSpinning = false;
+      document.getElementById('btn-ar-assemble').classList.add('active');
+      document.getElementById('btn-ar-explode').classList.remove('active');
+      document.getElementById('btn-ar-spin').classList.remove('active');
+
+      if (currentTargetIdx >= 0) {
+        const current = targets[currentTargetIdx];
+        current.isEmerging = true;
+        animateEmergenceFromSurface(current, current.containerId, current.submerseZ, current.finalZ, 2600);
+      }
     }
 
     // Seek GLB Animation Action by normalized progress (0.0 = assembled, 1.0 = exploded)
@@ -659,7 +754,7 @@
       if (mixer) mixer.update(0);
     }
 
-    // Smooth Assembly / Explosion Transition using true GLB keyframe tracks
+    // Smooth Assembly / Explosion Transition
     function animateExplosionState(modelId, fromProgress, toProgress) {
       let startTime = performance.now();
       const duration = 750; // ms
@@ -667,7 +762,7 @@
       function step(now) {
         const elapsed = now - startTime;
         const p = Math.min(1, elapsed / duration);
-        const ease = 0.5 - Math.cos(p * Math.PI) / 2; // smooth cosine ease
+        const ease = 0.5 - Math.cos(p * Math.PI) / 2;
         const currentProgress = fromProgress + (toProgress - fromProgress) * ease;
 
         seekAnimation(modelId, 'Explode_Assembly', currentProgress);
